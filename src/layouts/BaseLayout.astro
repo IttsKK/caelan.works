@@ -1,0 +1,155 @@
+---
+import "@fontsource/instrument-sans/400.css";
+import "@fontsource/instrument-sans/500.css";
+import "@fontsource/instrument-serif/400.css";
+import { siteMeta } from "../config/site";
+import AsciiSim from "../components/AsciiSim.astro";
+import "../styles/tokens.css";
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = `${siteMeta.name} | ${siteMeta.tagline}`,
+  description = siteMeta.intro,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+    <AsciiSim />
+    <a class="skip-link" href="#content">Skip to content</a>
+    <div class="page-content" id="content">
+      <slot />
+    </div>
+    <div class="controls" role="group" aria-label="Site controls">
+      <div class="controls__styles" role="radiogroup" aria-label="Color style">
+        <button class="controls__dot" data-style="amber" aria-label="Amber theme"></button>
+        <button class="controls__dot" data-style="blue" aria-label="Blue theme"></button>
+        <button class="controls__dot" data-style="ward" aria-label="Ward theme"></button>
+        <button class="controls__dot" data-style="neon" aria-label="Neon theme"></button>
+        <button class="controls__dot" data-style="prism" aria-label="Prism theme"></button>
+      </div>
+      <div class="controls__sep"></div>
+      <button class="controls__mode" aria-label="Toggle light/dark mode">
+        <svg class="controls__mode-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Moon (default/dark mode icon) -->
+          <path class="controls__icon-moon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          <!-- Sun (light mode icon) -->
+          <g class="controls__icon-sun">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </g>
+        </svg>
+      </button>
+    </div>
+    <div class="mode-wipe" aria-hidden="true"></div>
+    <script is:inline>
+      (() => {
+        const styles = ["amber", "blue", "ward", "neon", "prism"];
+        const html = document.documentElement;
+        const dots = document.querySelectorAll(".controls__dot");
+        const modeBtn = document.querySelector(".controls__mode");
+        const wipe = document.querySelector(".mode-wipe");
+
+        // Random style on each reload (no persistence for style)
+        const activeStyle = styles[Math.floor(Math.random() * styles.length)];
+        html.setAttribute("data-style", activeStyle);
+
+        const setActiveDot = (style) => {
+          dots.forEach(d => d.classList.toggle("controls__dot--active", d.dataset.style === style));
+        };
+        setActiveDot(activeStyle);
+
+        // Set style on sim — use pending if sim hasn't initialized yet
+        window.__simPendingStyle = activeStyle;
+        if (window.__simSetChars) window.__simSetChars(activeStyle);
+
+        dots.forEach(dot => {
+          dot.addEventListener("click", () => {
+            const style = dot.dataset.style;
+            html.setAttribute("data-style", style);
+            if (window.__simSetChars) window.__simSetChars(style);
+            setActiveDot(style);
+          });
+        });
+
+        // Light/dark mode — persisted, with circular wipe transition
+        const savedMode = localStorage.getItem("sim-mode");
+        let mode = savedMode || "dark";
+        let switching = false;
+
+        const applyMode = (m) => {
+          mode = m;
+          if (m === "light") {
+            html.setAttribute("data-mode", "light");
+          } else {
+            html.removeAttribute("data-mode");
+          }
+          html.classList.toggle("is-light", m === "light");
+        };
+
+        // Apply immediately on load (no animation)
+        applyMode(mode);
+
+        modeBtn.addEventListener("click", () => {
+          if (switching) return;
+          switching = true;
+          const next = mode === "dark" ? "light" : "dark";
+
+          // Position wipe from the button
+          const rect = modeBtn.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          // Radius to cover full screen from button position
+          const maxDist = Math.hypot(
+            Math.max(cx, window.innerWidth - cx),
+            Math.max(cy, window.innerHeight - cy)
+          );
+
+          // Set wipe color to the TARGET mode's background
+          wipe.style.setProperty("--wipe-x", cx + "px");
+          wipe.style.setProperty("--wipe-y", cy + "px");
+          wipe.style.setProperty("--wipe-r", maxDist + "px");
+          wipe.style.background = next === "light" ? "#f2f1ef" : "#0c0c0c";
+
+          // Start expand
+          wipe.classList.add("mode-wipe--active");
+
+          // Halfway through, swap the actual mode
+          setTimeout(() => {
+            applyMode(next);
+            localStorage.setItem("sim-mode", next);
+          }, 350);
+
+          // After full expand, fade out the wipe
+          setTimeout(() => {
+            wipe.classList.add("mode-wipe--fade");
+          }, 500);
+
+          setTimeout(() => {
+            wipe.classList.remove("mode-wipe--active", "mode-wipe--fade");
+            switching = false;
+          }, 800);
+        });
+      })();
+    </script>
+  </body>
+</html>

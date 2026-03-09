@@ -1,0 +1,547 @@
+<div class="sim" data-sim aria-hidden="true">
+  <pre class="sim__screen sim__screen--base"></pre>
+  <pre class="sim__screen sim__screen--wave"></pre>
+</div>
+
+<script is:inline>
+  const setupSim = () => {
+    const root = document.querySelector("[data-sim]");
+    const baseScreen = root && root.querySelector(".sim__screen--base");
+    const waveScreen = root && root.querySelector(".sim__screen--wave");
+    if (!root || !baseScreen || !waveScreen) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const N = 128;
+    let cols = 220;
+    let rows = 80;
+    const dt = 0.08;
+    const diffusion = 0.0002;
+    const viscosity = 0.0015;
+    const solverIter = 8;
+
+    const S = (N + 2) * (N + 2);
+    const u = new Float32Array(S);
+    const v = new Float32Array(S);
+    const u0 = new Float32Array(S);
+    const v0 = new Float32Array(S);
+    const dens = new Float32Array(S);
+    const dens0 = new Float32Array(S);
+
+    const charSets = {
+      amber: " ░░▒▒▓▓▓███",
+      blue:  " ·•∘○◎●◉⦿⬤█",
+      ward:  " .,:ilI|/\\(){}[]#@",
+      neon:  " .·:;+=*xX%#█",
+      prism: " .·:◌◈◇◆◊◼⬢⬣█",
+    };
+    const defaultStyle = "amber";
+    const waveDuration = 900;
+    const waveFeather = 96;
+    let activeStyle = defaultStyle;
+    let activeChars = charSets[defaultStyle];
+    let activeColor = "";
+    let waveStyle = null;
+    let waveChars = activeChars;
+    let waveColor = "";
+    let waveStart = 0;
+
+    let rafId = 0;
+    let lastTick = 0;
+    let frame = 0;
+    let pointerX = -1;
+    let pointerY = -1;
+    let prevPointerX = -1;
+    let prevPointerY = -1;
+    // Sim-space pointer coords (cached)
+    let pointerSX = -1;
+    let pointerSY = -1;
+    // Smoothed velocity for mouse interaction
+    let smoothVx = 0;
+    let smoothVy = 0;
+
+    const IX = (i, j) => i + (N + 2) * j;
+    const getSimColor = () =>
+      getComputedStyle(document.documentElement).getPropertyValue("--sim-color").trim() || "#4a7d6a";
+
+    const setBnd = (b, x) => {
+      const n = N;
+      for (let i = 1; i <= n; i++) {
+        x[IX(0, i)]     = b === 1 ? -x[IX(1, i)] : x[IX(1, i)];
+        x[IX(n + 1, i)] = b === 1 ? -x[IX(n, i)] : x[IX(n, i)];
+        x[IX(i, 0)]     = b === 2 ? -x[IX(i, 1)] : x[IX(i, 1)];
+        x[IX(i, n + 1)] = b === 2 ? -x[IX(i, n)] : x[IX(i, n)];
+      }
+      x[IX(0, 0)]         = 0.5 * (x[IX(1, 0)] + x[IX(0, 1)]);
+      x[IX(0, n + 1)]     = 0.5 * (x[IX(1, n + 1)] + x[IX(0, n)]);
+      x[IX(n + 1, 0)]     = 0.5 * (x[IX(n, 0)] + x[IX(n + 1, 1)]);
+      x[IX(n + 1, n + 1)] = 0.5 * (x[IX(n, n + 1)] + x[IX(n + 1, n)]);
+    };
+
+    const linSolve = (b, x, x0, a, c) => {
+      const cRecip = 1.0 / c;
+      for (let k = 0; k < solverIter; k++) {
+        for (let j = 1; j <= N; j++) {
+          for (let i = 1; i <= N; i++) {
+            x[IX(i, j)] = (x0[IX(i, j)] + a * (
+              x[IX(i + 1, j)] + x[IX(i - 1, j)] +
+              x[IX(i, j + 1)] + x[IX(i, j - 1)]
+            )) * cRecip;
+          }
+        }
+        setBnd(b, x);
+      }
+    };
+
+    const diffuse = (b, x, x0, diff) => {
+      const a = dt * diff * N * N;
+      linSolve(b, x, x0, a, 1 + 4 * a);
+    };
+
+    const advect = (b, d, d0, velU, velV) => {
+      const dt0 = dt * N;
+      for (let j = 1; j <= N; j++) {
+        for (let i = 1; i <= N; i++) {
+          let x = i - dt0 * velU[IX(i, j)];
+          let y = j - dt0 * velV[IX(i, j)];
+          if (x < 0.5) x = 0.5;
+          if (x > N + 0.5) x = N + 0.5;
+          const i0 = Math.floor(x);
+          const i1 = i0 + 1;
+          const s1 = x - i0;
+          const s0 = 1 - s1;
+          if (y < 0.5) y = 0.5;
+          if (y > N + 0.5) y = N + 0.5;
+          const j0 = Math.floor(y);
+          const j1 = j0 + 1;
+          const t1 = y - j0;
+          const t0 = 1 - t1;
+          d[IX(i, j)] =
+            s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) +
+            s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
+        }
+      }
+      setBnd(b, d);
+    };
+
+    const project = (velU, velV, p, div) => {
+      const h = 1.0 / N;
+      for (let j = 1; j <= N; j++) {
+        for (let i = 1; i <= N; i++) {
+          div[IX(i, j)] = -0.5 * h * (
+            velU[IX(i + 1, j)] - velU[IX(i - 1, j)] +
+            velV[IX(i, j + 1)] - velV[IX(i, j - 1)]
+          );
+          p[IX(i, j)] = 0;
+        }
+      }
+      setBnd(0, div);
+      setBnd(0, p);
+      linSolve(0, p, div, 1, 4);
+      for (let j = 1; j <= N; j++) {
+        for (let i = 1; i <= N; i++) {
+          velU[IX(i, j)] -= 0.5 * N * (p[IX(i + 1, j)] - p[IX(i - 1, j)]);
+          velV[IX(i, j)] -= 0.5 * N * (p[IX(i, j + 1)] - p[IX(i, j - 1)]);
+        }
+      }
+      setBnd(1, velU);
+      setBnd(2, velV);
+    };
+
+    const velStep = () => {
+      diffuse(1, u0, u, viscosity);
+      diffuse(2, v0, v, viscosity);
+      project(u0, v0, u, v);
+      advect(1, u, u0, u0, v0);
+      advect(2, v, v0, u0, v0);
+      project(u, v, u0, v0);
+    };
+
+    const densStep = () => {
+      diffuse(0, dens0, dens, diffusion);
+      advect(0, dens, dens0, u, v);
+    };
+
+    const addSource = (cx, cy, amount, radius) => {
+      const r = radius;
+      for (let j = -r; j <= r; j++) {
+        for (let i = -r; i <= r; i++) {
+          const si = cx + i;
+          const sj = cy + j;
+          if (si < 1 || si > N || sj < 1 || sj > N) continue;
+          const d = Math.sqrt(i * i + j * j);
+          if (d > r) continue;
+          const falloff = 1 - d / r;
+          dens[IX(si, sj)] += amount * falloff * falloff;
+        }
+      }
+    };
+
+    // Set density to a target value (for the mouse blob)
+    const setSource = (cx, cy, target, radius) => {
+      const r = radius;
+      for (let j = -r; j <= r; j++) {
+        for (let i = -r; i <= r; i++) {
+          const si = cx + i;
+          const sj = cy + j;
+          if (si < 1 || si > N || sj < 1 || sj > N) continue;
+          const d = Math.sqrt(i * i + j * j);
+          if (d > r) continue;
+          const falloff = 1 - d / r;
+          const desired = target * falloff * falloff;
+          const idx = IX(si, sj);
+          if (dens[idx] < desired) dens[idx] = desired;
+        }
+      }
+    };
+
+    const addVelocity = (cx, cy, amtX, amtY, radius) => {
+      const r = radius;
+      for (let j = -r; j <= r; j++) {
+        for (let i = -r; i <= r; i++) {
+          const si = cx + i;
+          const sj = cy + j;
+          if (si < 1 || si > N || sj < 1 || sj > N) continue;
+          const d = Math.sqrt(i * i + j * j);
+          if (d > r) continue;
+          const falloff = 1 - d / r;
+          u[IX(si, sj)] += amtX * falloff;
+          v[IX(si, sj)] += amtY * falloff;
+        }
+      }
+    };
+
+    const buildFrame = (charSet) => {
+      let out = "";
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const sx = (col / (cols - 1)) * N + 1;
+          const sy = (row / (rows - 1)) * N + 1;
+          const i0 = Math.floor(sx);
+          const j0 = Math.floor(sy);
+          const i1 = Math.min(i0 + 1, N);
+          const j1 = Math.min(j0 + 1, N);
+          const fx = sx - i0;
+          const fy = sy - j0;
+          const val =
+            (1 - fx) * (1 - fy) * dens[IX(i0, j0)] +
+            fx * (1 - fy) * dens[IX(i1, j0)] +
+            (1 - fx) * fy * dens[IX(i0, j1)] +
+            fx * fy * dens[IX(i1, j1)];
+          const clamped = Math.max(0, Math.min(1, val));
+          out += charSet[Math.floor(clamped * (charSet.length - 1))];
+        }
+        if (row < rows - 1) out += "\n";
+      }
+      return out;
+    };
+
+    const clearWave = () => {
+      waveStyle = null;
+      waveScreen.textContent = "";
+      waveScreen.style.webkitMaskImage = "none";
+      waveScreen.style.maskImage = "none";
+      root.classList.remove("sim--waving");
+    };
+
+    const setWaveReveal = (progress) => {
+      const width = baseScreen.getBoundingClientRect().width || window.innerWidth;
+      const edge = Math.max(36, Math.min(waveFeather, width * 0.18));
+      const reveal = width * Math.max(0, Math.min(1, progress));
+      const solid = Math.max(0, reveal - edge);
+      const fadeEnd = Math.min(width, reveal + edge);
+      const mask = `linear-gradient(to right, #000 0px, #000 ${solid}px, rgba(0, 0, 0, 0.94) ${reveal}px, transparent ${fadeEnd}px, transparent 100%)`;
+      waveScreen.style.webkitMaskImage = mask;
+      waveScreen.style.maskImage = mask;
+    };
+
+    const render = (time = performance.now()) => {
+      const baseFrame = buildFrame(activeChars);
+      baseScreen.textContent = baseFrame;
+
+      if (!waveStyle) return;
+
+      const waveFrame = buildFrame(waveChars);
+      const progress = Math.max(0, Math.min(1, (time - waveStart) / waveDuration));
+
+      waveScreen.textContent = waveFrame;
+      setWaveReveal(progress);
+
+      if (progress >= 1) {
+        activeStyle = waveStyle;
+        activeChars = waveChars;
+        activeColor = waveColor;
+        baseScreen.style.color = activeColor;
+        baseScreen.textContent = waveFrame;
+        clearWave();
+      }
+    };
+
+    const ambient = () => {
+      frame++;
+      const t = frame * 0.02;
+
+      // Slow wandering emitters — thick blobs
+      const e1x = Math.floor(Math.sin(t * 0.3) * N * 0.3 + N * 0.5);
+      const e1y = Math.floor(Math.cos(t * 0.4) * N * 0.25 + N * 0.5);
+      addSource(e1x, e1y, 0.4, 7);
+      addVelocity(e1x, e1y, Math.cos(t * 0.5) * 0.8, Math.sin(t * 0.45) * 0.8, 9);
+
+      const e2x = Math.floor(Math.cos(t * 0.25) * N * 0.35 + N * 0.45);
+      const e2y = Math.floor(Math.sin(t * 0.3) * N * 0.3 + N * 0.55);
+      addSource(e2x, e2y, 0.35, 6);
+      addVelocity(e2x, e2y, Math.sin(t * 0.35) * 0.7, Math.cos(t * 0.4) * 0.7, 8);
+
+      const e3x = Math.floor(Math.sin(t * 0.2 + 2) * N * 0.25 + N * 0.6);
+      const e3y = Math.floor(Math.cos(t * 0.25 + 1) * N * 0.3 + N * 0.4);
+      addSource(e3x, e3y, 0.3, 6);
+      addVelocity(e3x, e3y, Math.cos(t * 0.3) * 0.6, -Math.sin(t * 0.35) * 0.6, 7);
+
+      const e4x = Math.floor(Math.cos(t * 0.18 + 4) * N * 0.3 + N * 0.5);
+      const e4y = Math.floor(Math.sin(t * 0.22 + 3) * N * 0.35 + N * 0.5);
+      addSource(e4x, e4y, 0.25, 6);
+      addVelocity(e4x, e4y, -Math.sin(t * 0.4) * 0.6, Math.cos(t * 0.3) * 0.6, 7);
+
+      // Slow decay + cap — density lingers
+      for (let i = 0; i < S; i++) {
+        dens[i] *= 0.996;
+        if (dens[i] > 0.8) dens[i] = 0.8;
+      }
+    };
+
+    const seedInitial = () => {
+      // Dense blobs spread across the field
+      addSource(Math.floor(N * 0.25), Math.floor(N * 0.3), 4, 16);
+      addSource(Math.floor(N * 0.75), Math.floor(N * 0.65), 3.5, 14);
+      addSource(Math.floor(N * 0.5), Math.floor(N * 0.5), 3, 18);
+      addSource(Math.floor(N * 0.35), Math.floor(N * 0.75), 3, 12);
+      addSource(Math.floor(N * 0.65), Math.floor(N * 0.25), 2.5, 11);
+      addSource(Math.floor(N * 0.15), Math.floor(N * 0.55), 2, 10);
+      addSource(Math.floor(N * 0.85), Math.floor(N * 0.45), 2, 10);
+      addSource(Math.floor(N * 0.5), Math.floor(N * 0.15), 2, 9);
+      addSource(Math.floor(N * 0.5), Math.floor(N * 0.85), 2, 9);
+      // Slow swirl
+      for (let j = 1; j <= N; j++) {
+        for (let i = 1; i <= N; i++) {
+          const dx = i - N * 0.5;
+          const dy = j - N * 0.5;
+          const dist = Math.sqrt(dx * dx + dy * dy) + 0.1;
+          const angle = Math.atan2(dy, dx);
+          u[IX(i, j)] = (-Math.sin(angle) * 1.2) / (1 + dist * 0.03);
+          v[IX(i, j)] = (Math.cos(angle) * 1.2) / (1 + dist * 0.03);
+        }
+      }
+    };
+
+    const tick = (time) => {
+      if (!lastTick || time - lastTick > 33) {
+        lastTick = time;
+
+        // Mouse blob — persistent dense circle that pushes fluid
+        if (pointerX >= 0 && pointerY >= 0) {
+          const sx = Math.floor((pointerX / (cols - 1)) * N) + 1;
+          const sy = Math.floor((pointerY / (rows - 1)) * N) + 1;
+          pointerSX = sx;
+          pointerSY = sy;
+
+          // Density blob — baseline at rest, intensifies with speed
+          if (prevPointerX >= 0) {
+            const psx = Math.floor((prevPointerX / (cols - 1)) * N) + 1;
+            const psy = Math.floor((prevPointerY / (rows - 1)) * N) + 1;
+            const rawDvx = sx - psx;
+            const rawDvy = sy - psy;
+            // Smooth velocity with exponential moving average
+            smoothVx = smoothVx * 0.6 + rawDvx * 0.4;
+            smoothVy = smoothVy * 0.6 + rawDvy * 0.4;
+            const speed = Math.sqrt(smoothVx * smoothVx + smoothVy * smoothVy);
+
+            // Density: baseline 0.45, curves up to 0.8 with speed (easeOut)
+            const t = Math.min(speed / 8, 1);
+            const curve = 1 - (1 - t) * (1 - t); // quadratic ease-out
+            const densityTarget = 0.45 + curve * 0.35;
+            setSource(sx, sy, densityTarget, 6);
+
+            // Extra additive density at high speed for heavier chars
+            if (speed > 2) {
+              const extra = curve * 0.25;
+              addSource(sx, sy, extra, 5);
+            }
+
+            if (speed > 0.5) {
+              const scale = Math.min(speed, 6) * 0.6;
+              const nx = smoothVx / speed;
+              const ny = smoothVy / speed;
+              addVelocity(sx, sy, nx * scale, ny * scale, 8);
+            }
+          } else {
+            setSource(sx, sy, 0.7, 6);
+            smoothVx = 0;
+            smoothVy = 0;
+          }
+          prevPointerX = pointerX;
+          prevPointerY = pointerY;
+        } else {
+          pointerSX = -1;
+          pointerSY = -1;
+        }
+
+        ambient();
+        velStep();
+        densStep();
+        render();
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const measureCell = () => {
+      const test = document.createElement("span");
+      test.style.cssText = "position:absolute;visibility:hidden;white-space:pre;font:inherit";
+      test.textContent = "M";
+      baseScreen.appendChild(test);
+      const charW = test.getBoundingClientRect().width;
+      const charH = test.getBoundingClientRect().height;
+      baseScreen.removeChild(test);
+      return { charW, charH };
+    };
+
+    const updateGridSize = () => {
+      const cell = measureCell();
+      if (!cell?.charW || !cell?.charH) return;
+
+      const bleedCols = 12;
+      const bleedRows = 8;
+      cols = Math.max(120, Math.min(520, Math.ceil(window.innerWidth / cell.charW) + bleedCols));
+      rows = Math.max(48, Math.min(220, Math.ceil(window.innerHeight / cell.charH) + bleedRows));
+      render();
+    };
+
+    const applyInitialStyle = (style) => {
+      if (!charSets[style]) return;
+      activeStyle = style;
+      activeChars = charSets[style];
+      activeColor = getSimColor();
+      baseScreen.style.color = activeColor;
+      waveScreen.style.color = activeColor;
+    };
+
+    const startStyleWave = (style) => {
+      if (!charSets[style]) return;
+
+      const nextColor = getSimColor();
+      if (!activeColor) activeColor = nextColor;
+
+      if (reducedMotion) {
+        activeStyle = style;
+        activeChars = charSets[style];
+        activeColor = nextColor;
+        baseScreen.style.color = activeColor;
+        clearWave();
+        render();
+        return;
+      }
+
+      if (!waveStyle && style === activeStyle && nextColor === activeColor) return;
+
+      waveStyle = style;
+      waveChars = charSets[style];
+      waveColor = nextColor;
+      waveStart = performance.now();
+      waveScreen.style.color = waveColor;
+      root.classList.add("sim--waving");
+      setWaveReveal(0);
+    };
+
+    clearWave();
+    applyInitialStyle(defaultStyle);
+
+    if (window.__simPendingStyle && charSets[window.__simPendingStyle]) {
+      applyInitialStyle(window.__simPendingStyle);
+    }
+
+    seedInitial();
+    updateGridSize();
+
+    if (!reducedMotion) {
+      rafId = requestAnimationFrame(tick);
+
+      const updatePointer = (cx, cy) => {
+        const bounds = baseScreen.getBoundingClientRect();
+        const rx = (cx - bounds.left) / bounds.width;
+        const ry = (cy - bounds.top) / bounds.height;
+        pointerX = Math.round(Math.max(0, Math.min(cols - 1, rx * (cols - 1))));
+        pointerY = Math.round(Math.max(0, Math.min(rows - 1, ry * (rows - 1))));
+      };
+
+      const clearPointer = () => {
+        pointerX = -1;
+        pointerY = -1;
+        prevPointerX = -1;
+        prevPointerY = -1;
+      };
+
+      // Mouse — works everywhere (desktop only, doesn't block clicks)
+      document.addEventListener("pointermove", (e) => {
+        if (e.pointerType === "touch") return;
+        updatePointer(e.clientX, e.clientY);
+      });
+      document.addEventListener("pointerleave", (e) => {
+        if (e.pointerType === "touch") return;
+        clearPointer();
+      });
+
+      // Touch — interact with sim unless touching an interactive element
+      const isInteractive = (el) => {
+        if (!el) return false;
+        return !!el.closest("a, button, input, select, textarea, .controls");
+      };
+
+      let touchActive = false;
+
+      document.addEventListener("touchstart", (e) => {
+        if (isInteractive(e.target)) return; // let buttons/links work normally
+        touchActive = true;
+        const t = e.touches[0];
+        updatePointer(t.clientX, t.clientY);
+        e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener("touchmove", (e) => {
+        if (!touchActive) return;
+        const t = e.touches[0];
+        updatePointer(t.clientX, t.clientY);
+        e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener("touchend", () => {
+        touchActive = false;
+        clearPointer();
+      });
+      document.addEventListener("touchcancel", () => {
+        touchActive = false;
+        clearPointer();
+      });
+    }
+
+    window.addEventListener("resize", updateGridSize);
+
+    document.addEventListener("visibilitychange", () => {
+      if (reducedMotion) return;
+      if (document.hidden) {
+        if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+      } else {
+        if (!rafId) rafId = requestAnimationFrame(tick);
+      }
+    });
+
+    // Allow theme switching
+    window.__simSetChars = (style) => {
+      startStyleWave(style);
+    };
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupSim, { once: true });
+  } else {
+    setupSim();
+  }
+</script>

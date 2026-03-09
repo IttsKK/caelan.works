@@ -1,0 +1,39 @@
+---
+import { projects } from "../data/projects";
+
+const toneMap = {
+  product: "Product system",
+  workflow: "Workflow tool",
+  robotics: "Robotics",
+  internal: "Internal utilities",
+} as const;
+---
+
+<section class="section" id="work">
+  <div class="frame section-shell">
+    <p class="section-index" aria-hidden="true">02</p>
+    <div class="section-content">
+      <h2 class="section-title">Work</h2>
+      <ol class="project-list">
+        {
+          projects.map((project) => (
+            <li>
+              <article class="project-row" id={project.slug}>
+                <div class="project-row__count" aria-hidden="true"></div>
+                <div class="project-row__body">
+                  <h3 class="project-row__title">
+                    <a href={`#${project.slug}`}>{project.title}</a>
+                  </h3>
+                  <p class="project-row__summary">{project.summary}</p>
+                </div>
+                <p class="project-row__meta">
+                  {toneMap[project.category]} / {project.status} / {project.visibility}
+                </p>
+              </article>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </div>
+</section>

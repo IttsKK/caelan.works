@@ -1,0 +1,35 @@
+---
+const context = [
+  {
+    title: "Startup work",
+    body: "Product and operations work shaped around launches, moving parts, and shipping useful internal systems.",
+  },
+  {
+    title: "Robotics",
+    body: "A systems-first background that still informs how problems get decomposed, tested, and tightened.",
+  },
+  {
+    title: "Tool habit",
+    body: "When a workflow repeats often enough, it usually turns into a script, utility, or small product surface.",
+  },
+];
+---
+
+<section class="section section--compact" id="context">
+  <div class="frame section-shell">
+    <p class="section-index" aria-hidden="true">03</p>
+    <div class="section-content">
+      <h2 class="section-title">Context</h2>
+      <div class="context-grid">
+        {
+          context.map((item) => (
+            <article class="context-item">
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>

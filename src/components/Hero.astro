@@ -1,0 +1,53 @@
+---
+import { siteMeta } from "../config/site";
+const [firstName, lastName] = siteMeta.name.split(" ");
+---
+
+<section class="hero" id="top">
+  <div class="frame hero__content">
+    <div class="hero__text" data-readable-zone>
+      <h1 class="hero__name">
+        <span class="hero__first">{firstName}</span>
+        <span class="hero__last">{lastName}</span>
+      </h1>
+      <p class="hero__tagline">{siteMeta.tagline} Currently working on <a href="https://jvcopilot.ai" target="_blank" rel="noreferrer">JV Copilot</a>, affiliate campaign management software.</p>
+    </div>
+  </div>
+</section>
+
+<script is:inline>
+  (() => {
+    const root = document.documentElement;
+    const zone = document.querySelector("[data-readable-zone]");
+    if (!zone) return;
+
+    let frame = 0;
+
+    const updateMask = () => {
+      frame = 0;
+      const rect = zone.getBoundingClientRect();
+      const widthPad = Math.min(window.innerWidth * 0.08, 96);
+      const heightPad = Math.min(window.innerHeight * 0.1, 84);
+
+      root.style.setProperty("--sim-mask-x", `${rect.left + rect.width / 2}px`);
+      root.style.setProperty("--sim-mask-y", `${rect.top + rect.height / 2}px`);
+      root.style.setProperty("--sim-mask-w", `${rect.width + widthPad}px`);
+      root.style.setProperty("--sim-mask-h", `${rect.height + heightPad}px`);
+    };
+
+    const queueUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(updateMask);
+    };
+
+    queueUpdate();
+    window.addEventListener("resize", queueUpdate, { passive: true });
+
+    const observer = new ResizeObserver(queueUpdate);
+    observer.observe(zone);
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(queueUpdate);
+    }
+  })();
+</script>

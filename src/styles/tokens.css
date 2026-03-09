@@ -1,0 +1,57 @@
+:root {
+  --page: #0c0c0c;
+  --surface: #141414;
+  --text: #e8e4df;
+  --text-muted: #8a847b;
+  --text-soft: #b7afa5;
+  --accent: #7eb8a2;
+  --accent-dim: #4a7d6a;
+  --accent-soft: rgba(126, 184, 162, 0.08);
+  --sim-color: #4a7d6a;
+  --overlay: rgba(12, 12, 12, 0.85);
+  --overlay-strong: rgba(12, 12, 12, 0.95);
+  --panel-bg: rgba(20, 20, 20, 0.85);
+  --panel-border: rgba(138, 132, 123, 0.15);
+  --shadow-glow: rgba(12, 12, 12, 0.9);
+
+  --font-sans: "Instrument Sans", "Helvetica Neue", "Nimbus Sans", sans-serif;
+  --font-display: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", serif;
+
+  --frame: 64rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+}
+
+/* ── Sim color themes ── */
+[data-style="amber"]  { --sim-color: #9a7030; --accent: #f0b445; --accent-dim: #d4952a; }
+[data-style="blue"]   { --sim-color: #2d7aa5; --accent: #5cc5f0; --accent-dim: #3a9fd5; }
+[data-style="ward"]   { --sim-color: #8f6c48; --accent: #ddb075; --accent-dim: #b7864f; }
+[data-style="neon"]   { --sim-color: #b33874; --accent: #ff5ca8; --accent-dim: #df2f86; }
+[data-style="prism"]  { --sim-color: #6b7089; --accent: #c5c9ff; --accent-dim: #959cd8; }
+
+/* ── Light mode ── */
+[data-mode="light"] {
+  --page: #f2f1ef;
+  --surface: #fafaf8;
+  --text: #1a1917;
+  --text-muted: #6b655c;
+  --text-soft: #504a42;
+  --accent-soft: rgba(126, 184, 162, 0.12);
+  --overlay: rgba(242, 241, 239, 0.85);
+  --overlay-strong: rgba(242, 241, 239, 0.95);
+  --panel-bg: rgba(250, 250, 248, 0.9);
+  --panel-border: rgba(0, 0, 0, 0.1);
+  --shadow-glow: rgba(242, 241, 239, 0.95);
+}
+
+[data-mode="light"][data-style="amber"]  { --sim-color: #b89050; }
+[data-mode="light"][data-style="blue"]   { --sim-color: #4a92b8; }
+[data-mode="light"][data-style="ward"]   { --sim-color: #b08a62; }
+[data-mode="light"][data-style="neon"]   { --sim-color: #d35b96; }
+[data-mode="light"][data-style="prism"]  { --sim-color: #888fad; }

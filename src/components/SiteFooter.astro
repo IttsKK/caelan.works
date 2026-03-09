@@ -1,0 +1,32 @@
+---
+import { siteMeta } from "../config/site";
+---
+
+<footer class="site-footer" id="contact">
+  <div class="frame site-footer__inner">
+    <div class="site-footer__col">
+      <h2 class="site-footer__heading">Get in touch</h2>
+      <a class="site-footer__email" href={`mailto:${siteMeta.email}`}>
+        {siteMeta.email}
+      </a>
+    </div>
+    <div class="site-footer__col">
+      <h2 class="site-footer__heading">Elsewhere</h2>
+      <ul class="site-footer__links">
+        {siteMeta.links.map((link) => (
+          <li>
+            <a href={link.href} target="_blank" rel="noreferrer">
+              {link.label} <span aria-hidden="true">&nearr;</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+    <div class="site-footer__col site-footer__col--wide">
+      <p class="site-footer__note">{siteMeta.intro}</p>
+    </div>
+  </div>
+  <div class="frame site-footer__bottom">
+    <p>&copy; {new Date().getFullYear()} {siteMeta.name}</p>
+  </div>
+</footer>
