@@ -479,52 +479,98 @@ button,
   }
 
   .hero__first {
-    font-size: clamp(3rem, 18vw, 5rem);
+    font-size: clamp(5.1rem, 24vw, 8.4rem);
   }
 
   .hero__last {
-    font-size: clamp(2.2rem, 14vw, 3.8rem);
+    font-size: clamp(3.75rem, 17vw, 6.45rem);
   }
 
   .site-footer__inner {
-    grid-template-columns: 1fr;
-    gap: var(--space-6);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4) var(--space-5);
+  }
+
+  .site-footer {
+    padding: var(--space-4) 0 calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .site-footer::before {
+    top: -1rem;
+  }
+
+  .site-footer__col--wide {
+    grid-column: 1 / -1;
+  }
+
+  .site-footer__heading {
+    margin-bottom: var(--space-2);
+    font-size: 0.7rem;
+  }
+
+  .site-footer__email {
+    font-size: clamp(1rem, 5vw, 1.2rem);
+  }
+
+  .site-footer__links {
+    gap: 0.35rem;
+  }
+
+  .site-footer__links a {
+    font-size: 0.88rem;
+  }
+
+  .site-footer__note {
+    font-size: 0.84rem;
+    line-height: 1.45;
+  }
+
+  .site-footer__bottom {
+    margin-top: var(--space-3);
+    padding-top: var(--space-2);
+  }
+
+  .site-footer__bottom p {
+    font-size: 0.72rem;
   }
 
   .controls {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-3));
-    right: var(--space-3);
-    padding: 7px 8px 7px 12px;
-    gap: 10px;
-    border-radius: 18px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.65rem);
+    right: 0.65rem;
+    gap: 0.45rem;
+    padding: 0.35rem 0.45rem 0.35rem 0.6rem;
+    border-radius: 14px;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
 
   .controls__styles {
-    gap: 8px;
+    gap: 0.35rem;
   }
 
   .controls__sep {
-    height: 24px;
-    opacity: 0.55;
+    height: 14px;
+    opacity: 0.35;
   }
 
   .controls__dot {
-    width: 11px;
-    height: 11px;
+    width: 9px;
+    height: 9px;
+    border-width: 1.5px;
   }
 
   .controls__mode {
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--panel-border);
-    border-radius: 14px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(138, 132, 123, 0.12);
+    border-radius: 10px;
     background: rgba(138, 132, 123, 0.12);
     color: var(--text);
   }
 
   .controls__mode-svg {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
   }
 
   [data-mode="light"] .controls__mode {
