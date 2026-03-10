@@ -1,5 +1,6 @@
 :root {
   --page: #0c0c0c;
+  --page-bg: var(--page);
   --surface: #141414;
   --text: #e8e4df;
   --text-muted: #8a847b;
@@ -13,6 +14,8 @@
   --panel-bg: rgba(20, 20, 20, 0.85);
   --panel-border: rgba(138, 132, 123, 0.15);
   --shadow-glow: rgba(12, 12, 12, 0.9);
+  --sim-opacity: 0.28;
+  --sim-opacity-hover: 0.42;
 
   --font-sans: "Instrument Sans", "Helvetica Neue", "Nimbus Sans", sans-serif;
   --font-display: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", serif;
@@ -37,21 +40,27 @@
 
 /* ── Light mode ── */
 [data-mode="light"] {
-  --page: #f2f1ef;
-  --surface: #fafaf8;
-  --text: #1a1917;
-  --text-muted: #6b655c;
-  --text-soft: #504a42;
-  --accent-soft: rgba(126, 184, 162, 0.12);
-  --overlay: rgba(242, 241, 239, 0.85);
-  --overlay-strong: rgba(242, 241, 239, 0.95);
-  --panel-bg: rgba(250, 250, 248, 0.9);
-  --panel-border: rgba(0, 0, 0, 0.1);
-  --shadow-glow: rgba(242, 241, 239, 0.95);
+  --page: #efeae0;
+  --page-bg:
+    radial-gradient(circle at 14% 12%, rgba(205, 184, 156, 0.22), transparent 28%),
+    radial-gradient(circle at 82% 76%, rgba(170, 185, 205, 0.16), transparent 32%),
+    linear-gradient(180deg, #f7f3eb 0%, #f1ece3 42%, #ebe5db 100%);
+  --surface: #faf7f1;
+  --text: #1d1812;
+  --text-muted: #716659;
+  --text-soft: #55493d;
+  --accent-soft: rgba(126, 184, 162, 0.08);
+  --overlay: rgba(239, 234, 224, 0.7);
+  --overlay-strong: rgba(239, 234, 224, 0.9);
+  --panel-bg: rgba(250, 247, 241, 0.72);
+  --panel-border: rgba(53, 43, 33, 0.1);
+  --shadow-glow: rgba(255, 249, 239, 0.42);
+  --sim-opacity: 0.15;
+  --sim-opacity-hover: 0.22;
 }
 
-[data-mode="light"][data-style="amber"]  { --sim-color: #b89050; }
-[data-mode="light"][data-style="blue"]   { --sim-color: #4a92b8; }
-[data-mode="light"][data-style="ward"]   { --sim-color: #b08a62; }
-[data-mode="light"][data-style="neon"]   { --sim-color: #d35b96; }
-[data-mode="light"][data-style="prism"]  { --sim-color: #888fad; }
+[data-mode="light"][data-style="amber"]  { --sim-color: #8f6633; }
+[data-mode="light"][data-style="blue"]   { --sim-color: #3d7696; }
+[data-mode="light"][data-style="ward"]   { --sim-color: #866245; }
+[data-mode="light"][data-style="neon"]   { --sim-color: #a44774; }
+[data-mode="light"][data-style="prism"]  { --sim-color: #666d84; }

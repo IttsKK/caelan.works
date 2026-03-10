@@ -16,7 +16,13 @@ import { siteMeta } from "../config/site";
         {siteMeta.links.map((link) => (
           <li>
             <a href={link.href} target="_blank" rel="noreferrer">
-              {link.label} <span aria-hidden="true">&nearr;</span>
+              <span>{link.label}</span>
+              <span class="site-footer__link-icon" aria-hidden="true">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 9L9 3" />
+                  <path d="M4 3H9V8" />
+                </svg>
+              </span>
             </a>
           </li>
         ))}

@@ -61,17 +61,15 @@ const {
         </svg>
       </button>
     </div>
-    <div class="mode-wipe" aria-hidden="true"></div>
     <script is:inline>
       (() => {
         const styles = ["amber", "blue", "ward", "neon", "prism"];
         const html = document.documentElement;
         const dots = document.querySelectorAll(".controls__dot");
         const modeBtn = document.querySelector(".controls__mode");
-        const wipe = document.querySelector(".mode-wipe");
 
         // Random style on each reload (no persistence for style)
-        const activeStyle = styles[Math.floor(Math.random() * styles.length)];
+        let activeStyle = styles[Math.floor(Math.random() * styles.length)];
         html.setAttribute("data-style", activeStyle);
 
         const setActiveDot = (style) => {
@@ -79,25 +77,37 @@ const {
         };
         setActiveDot(activeStyle);
 
+        const syncSimStyle = (style) => {
+          window.__simPendingStyle = style;
+          if (window.__simSetChars) window.__simSetChars(style);
+        };
+
+        const syncSimMode = () => {
+          if (window.__simSyncTheme) {
+            window.__simSyncTheme();
+            return;
+          }
+          syncSimStyle(activeStyle);
+        };
+
         // Set style on sim — use pending if sim hasn't initialized yet
-        window.__simPendingStyle = activeStyle;
-        if (window.__simSetChars) window.__simSetChars(activeStyle);
+        syncSimStyle(activeStyle);
 
         dots.forEach(dot => {
           dot.addEventListener("click", () => {
             const style = dot.dataset.style;
+            activeStyle = style;
             html.setAttribute("data-style", style);
-            if (window.__simSetChars) window.__simSetChars(style);
+            syncSimStyle(style);
             setActiveDot(style);
           });
         });
 
-        // Light/dark mode — persisted, with circular wipe transition
+        // Light/dark mode — persisted, direct swap with short token transitions
         const savedMode = localStorage.getItem("sim-mode");
         let mode = savedMode || "dark";
-        let switching = false;
 
-        const applyMode = (m) => {
+        const applyMode = (m, { syncSim = false } = {}) => {
           mode = m;
           if (m === "light") {
             html.setAttribute("data-mode", "light");
@@ -105,50 +115,17 @@ const {
             html.removeAttribute("data-mode");
           }
           html.classList.toggle("is-light", m === "light");
+
+          if (syncSim) syncSimMode();
         };
 
         // Apply immediately on load (no animation)
         applyMode(mode);
 
         modeBtn.addEventListener("click", () => {
-          if (switching) return;
-          switching = true;
           const next = mode === "dark" ? "light" : "dark";
-
-          // Position wipe from the button
-          const rect = modeBtn.getBoundingClientRect();
-          const cx = rect.left + rect.width / 2;
-          const cy = rect.top + rect.height / 2;
-          // Radius to cover full screen from button position
-          const maxDist = Math.hypot(
-            Math.max(cx, window.innerWidth - cx),
-            Math.max(cy, window.innerHeight - cy)
-          );
-
-          // Set wipe color to the TARGET mode's background
-          wipe.style.setProperty("--wipe-x", cx + "px");
-          wipe.style.setProperty("--wipe-y", cy + "px");
-          wipe.style.setProperty("--wipe-r", maxDist + "px");
-          wipe.style.background = next === "light" ? "#f2f1ef" : "#0c0c0c";
-
-          // Start expand
-          wipe.classList.add("mode-wipe--active");
-
-          // Halfway through, swap the actual mode
-          setTimeout(() => {
-            applyMode(next);
-            localStorage.setItem("sim-mode", next);
-          }, 350);
-
-          // After full expand, fade out the wipe
-          setTimeout(() => {
-            wipe.classList.add("mode-wipe--fade");
-          }, 500);
-
-          setTimeout(() => {
-            wipe.classList.remove("mode-wipe--active", "mode-wipe--fade");
-            switching = false;
-          }, 800);
+          applyMode(next, { syncSim: true });
+          localStorage.setItem("sim-mode", next);
         });
       })();
     </script>

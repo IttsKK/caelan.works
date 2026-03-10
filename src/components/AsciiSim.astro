@@ -11,6 +11,7 @@
     if (!root || !baseScreen || !waveScreen) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
 
     const N = 128;
     let cols = 220;
@@ -59,6 +60,7 @@
     // Smoothed velocity for mouse interaction
     let smoothVx = 0;
     let smoothVy = 0;
+    let touchActive = false;
 
     const IX = (i, j) => i + (N + 2) * j;
     const getSimColor = () =>
@@ -337,8 +339,27 @@
       if (!lastTick || time - lastTick > 33) {
         lastTick = time;
 
+        if (coarsePointer && !touchActive) {
+          const idleX = Math.round(
+            (0.5 + Math.sin(time * 0.00022) * 0.16 + Math.cos(time * 0.00009) * 0.04) *
+            (cols - 1)
+          );
+          const idleY = Math.round(
+            (0.56 + Math.cos(time * 0.00018) * 0.12 + Math.sin(time * 0.00011) * 0.03) *
+            (rows - 1)
+          );
+          if (pointerX < 0 || pointerY < 0) {
+            pointerX = idleX;
+            pointerY = idleY;
+          } else {
+            pointerX += (idleX - pointerX) * 0.05;
+            pointerY += (idleY - pointerY) * 0.05;
+          }
+        }
+
         // Mouse blob — persistent dense circle that pushes fluid
         if (pointerX >= 0 && pointerY >= 0) {
+          const pointerIsIdle = coarsePointer && !touchActive;
           const sx = Math.floor((pointerX / (cols - 1)) * N) + 1;
           const sy = Math.floor((pointerY / (rows - 1)) * N) + 1;
           pointerSX = sx;
@@ -355,26 +376,29 @@
             smoothVy = smoothVy * 0.6 + rawDvy * 0.4;
             const speed = Math.sqrt(smoothVx * smoothVx + smoothVy * smoothVy);
 
-            // Density: baseline 0.45, curves up to 0.8 with speed (easeOut)
-            const t = Math.min(speed / 8, 1);
+            const speedRange = pointerIsIdle ? 5 : 8;
+            const t = Math.min(speed / speedRange, 1);
             const curve = 1 - (1 - t) * (1 - t); // quadratic ease-out
-            const densityTarget = 0.45 + curve * 0.35;
-            setSource(sx, sy, densityTarget, 6);
+            const densityBase = pointerIsIdle ? 0.34 : 0.45;
+            const densityBoost = pointerIsIdle ? 0.18 : 0.35;
+            const sourceRadius = pointerIsIdle ? 8 : 6;
+            const densityTarget = densityBase + curve * densityBoost;
+            setSource(sx, sy, densityTarget, sourceRadius);
 
             // Extra additive density at high speed for heavier chars
-            if (speed > 2) {
-              const extra = curve * 0.25;
-              addSource(sx, sy, extra, 5);
+            if (speed > (pointerIsIdle ? 1.2 : 2)) {
+              const extra = curve * (pointerIsIdle ? 0.12 : 0.25);
+              addSource(sx, sy, extra, pointerIsIdle ? 6 : 5);
             }
 
             if (speed > 0.5) {
-              const scale = Math.min(speed, 6) * 0.6;
+              const scale = Math.min(speed, pointerIsIdle ? 4 : 6) * (pointerIsIdle ? 0.34 : 0.6);
               const nx = smoothVx / speed;
               const ny = smoothVy / speed;
-              addVelocity(sx, sy, nx * scale, ny * scale, 8);
+              addVelocity(sx, sy, nx * scale, ny * scale, pointerIsIdle ? 10 : 8);
             }
           } else {
-            setSource(sx, sy, 0.7, 6);
+            setSource(sx, sy, coarsePointer ? 0.54 : 0.7, coarsePointer ? 8 : 6);
             smoothVx = 0;
             smoothVy = 0;
           }
@@ -428,27 +452,29 @@
       if (!charSets[style]) return;
 
       const nextColor = getSimColor();
-      if (!activeColor) activeColor = nextColor;
+      if (style === activeStyle && nextColor === activeColor) return;
 
-      if (reducedMotion) {
-        activeStyle = style;
-        activeChars = charSets[style];
-        activeColor = nextColor;
-        baseScreen.style.color = activeColor;
-        clearWave();
+      activeStyle = style;
+      activeChars = charSets[style];
+      activeColor = nextColor;
+      baseScreen.style.color = activeColor;
+      waveScreen.style.color = activeColor;
+      clearWave();
+      render();
+    };
+
+    const syncThemeColor = () => {
+      const nextColor = getSimColor();
+      activeColor = nextColor;
+      baseScreen.style.color = nextColor;
+      if (!waveStyle) {
+        waveScreen.style.color = nextColor;
         render();
         return;
       }
 
-      if (!waveStyle && style === activeStyle && nextColor === activeColor) return;
-
-      waveStyle = style;
-      waveChars = charSets[style];
       waveColor = nextColor;
-      waveStart = performance.now();
-      waveScreen.style.color = waveColor;
-      root.classList.add("sim--waving");
-      setWaveReveal(0);
+      waveScreen.style.color = nextColor;
     };
 
     clearWave();
@@ -495,8 +521,6 @@
         return !!el.closest("a, button, input, select, textarea, .controls");
       };
 
-      let touchActive = false;
-
       document.addEventListener("touchstart", (e) => {
         if (isInteractive(e.target)) return; // let buttons/links work normally
         touchActive = true;
@@ -536,6 +560,9 @@
     // Allow theme switching
     window.__simSetChars = (style) => {
       startStyleWave(style);
+    };
+    window.__simSyncTheme = () => {
+      syncThemeColor();
     };
   };
 
