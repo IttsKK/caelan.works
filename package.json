@@ -15,6 +15,7 @@
     "@astrojs/sitemap": "^3.7.0",
     "@fontsource/instrument-sans": "^5.2.8",
     "@fontsource/instrument-serif": "^5.2.8",
+    "@vercel/analytics": "^2.0.1",
     "astro": "^5.18.0"
   },
   "devDependencies": {
