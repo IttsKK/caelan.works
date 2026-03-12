@@ -4,6 +4,7 @@ import "@fontsource/instrument-sans/500.css";
 import "@fontsource/instrument-serif/400.css";
 import { siteMeta } from "../config/site";
 import AsciiSim from "../components/AsciiSim.astro";
+import { Analytics } from "@vercel/analytics/astro";
 import "../styles/tokens.css";
 import "../styles/global.css";
 
@@ -61,6 +62,7 @@ const {
         </svg>
       </button>
     </div>
+    <Analytics />
     <script is:inline>
       (() => {
         const styles = ["amber", "blue", "ward", "neon", "prism"];
