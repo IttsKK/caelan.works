@@ -4,6 +4,8 @@ import "@fontsource/instrument-sans/500.css";
 import "@fontsource/instrument-serif/400.css";
 import { siteMeta } from "../config/site";
 import AsciiSim from "../components/AsciiSim.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteFooter from "../components/SiteFooter.astro";
 import Analytics from "@vercel/analytics/astro";
 import "../styles/tokens.css";
 import "../styles/global.css";
@@ -14,7 +16,7 @@ interface Props {
 }
 
 const {
-  title = `${siteMeta.name} | ${siteMeta.tagline}`,
+  title = `${siteMeta.name} — ${siteMeta.tagline}`,
   description = siteMeta.intro,
 } = Astro.props;
 ---
@@ -26,28 +28,59 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site ?? Astro.url).href} />
+    <script is:inline>
+      // Applied before first paint so the page never flashes the wrong mode.
+      (() => {
+        const html = document.documentElement;
+        const styles = ["amber", "blue", "ward", "neon", "prism"];
+        const savedStyle = localStorage.getItem("site-style");
+        html.setAttribute(
+          "data-style",
+          styles.includes(savedStyle) ? savedStyle : "prism",
+        );
+
+        const savedMode = localStorage.getItem("sim-mode");
+        const mode =
+          savedMode ||
+          (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+        if (mode === "light") {
+          html.setAttribute("data-mode", "light");
+          html.classList.add("is-light");
+        }
+      })();
+    </script>
   </head>
   <body>
     <AsciiSim />
     <a class="skip-link" href="#content">Skip to content</a>
-    <div class="page-content" id="content">
+    <SiteHeader />
+    <main class="page-content" id="content">
       <slot />
-    </div>
-    <div class="controls" role="group" aria-label="Site controls">
-      <div class="controls__styles" role="radiogroup" aria-label="Color style">
-        <button class="controls__dot" data-style="amber" aria-label="Amber theme"></button>
-        <button class="controls__dot" data-style="blue" aria-label="Blue theme"></button>
-        <button class="controls__dot" data-style="ward" aria-label="Ward theme"></button>
-        <button class="controls__dot" data-style="neon" aria-label="Neon theme"></button>
-        <button class="controls__dot" data-style="prism" aria-label="Prism theme"></button>
-      </div>
+    </main>
+    <SiteFooter />
+    <div class="controls" role="group" aria-label="Appearance">
+      <details class="controls__styles-wrap">
+        <summary class="controls__toggle" aria-label="Accent colour">
+          <span class="controls__swatch" aria-hidden="true"></span>
+        </summary>
+        <div class="controls__styles" role="group" aria-label="Accent colour">
+          <button class="controls__dot" data-style="prism" aria-label="Prism accent"></button>
+          <button class="controls__dot" data-style="ward" aria-label="Ward accent"></button>
+          <button class="controls__dot" data-style="amber" aria-label="Amber accent"></button>
+          <button class="controls__dot" data-style="blue" aria-label="Blue accent"></button>
+          <button class="controls__dot" data-style="neon" aria-label="Neon accent"></button>
+        </div>
+      </details>
       <div class="controls__sep"></div>
-      <button class="controls__mode" aria-label="Toggle light/dark mode">
+      <button class="controls__mode" aria-label="Toggle light and dark mode" aria-pressed="false">
         <svg class="controls__mode-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <!-- Moon (default/dark mode icon) -->
           <path class="controls__icon-moon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          <!-- Sun (light mode icon) -->
           <g class="controls__icon-sun">
             <circle cx="12" cy="12" r="5"/>
             <line x1="12" y1="1" x2="12" y2="3"/>
@@ -65,17 +98,17 @@ const {
     <Analytics />
     <script is:inline>
       (() => {
-        const styles = ["amber", "blue", "ward", "neon", "prism"];
         const html = document.documentElement;
         const dots = document.querySelectorAll(".controls__dot");
         const modeBtn = document.querySelector(".controls__mode");
+        const stylesWrap = document.querySelector(".controls__styles-wrap");
 
-        // Random style on each reload (no persistence for style)
-        let activeStyle = styles[Math.floor(Math.random() * styles.length)];
-        html.setAttribute("data-style", activeStyle);
+        let activeStyle = html.getAttribute("data-style") || "prism";
 
         const setActiveDot = (style) => {
-          dots.forEach(d => d.classList.toggle("controls__dot--active", d.dataset.style === style));
+          dots.forEach((dot) =>
+            dot.classList.toggle("controls__dot--active", dot.dataset.style === style),
+          );
         };
         setActiveDot(activeStyle);
 
@@ -83,45 +116,43 @@ const {
           window.__simPendingStyle = style;
           if (window.__simSetChars) window.__simSetChars(style);
         };
-
-        const syncSimMode = () => {
-          if (window.__simSyncTheme) {
-            window.__simSyncTheme();
-            return;
-          }
-          syncSimStyle(activeStyle);
-        };
-
-        // Set style on sim — use pending if sim hasn't initialized yet
         syncSimStyle(activeStyle);
 
-        dots.forEach(dot => {
+        dots.forEach((dot) => {
           dot.addEventListener("click", () => {
-            const style = dot.dataset.style;
-            activeStyle = style;
-            html.setAttribute("data-style", style);
-            syncSimStyle(style);
-            setActiveDot(style);
+            activeStyle = dot.dataset.style;
+            html.setAttribute("data-style", activeStyle);
+            localStorage.setItem("site-style", activeStyle);
+            syncSimStyle(activeStyle);
+            setActiveDot(activeStyle);
+            if (stylesWrap) stylesWrap.open = false;
           });
         });
 
-        // Light/dark mode — persisted, direct swap with short token transitions
-        const savedMode = localStorage.getItem("sim-mode");
-        let mode = savedMode || "dark";
+        // Close the swatch popover on outside click.
+        document.addEventListener("click", (event) => {
+          if (!stylesWrap || !stylesWrap.open) return;
+          if (!stylesWrap.contains(event.target)) stylesWrap.open = false;
+        });
 
-        const applyMode = (m, { syncSim = false } = {}) => {
-          mode = m;
-          if (m === "light") {
+        let mode = html.classList.contains("is-light") ? "light" : "dark";
+
+        const applyMode = (next, { syncSim = false } = {}) => {
+          mode = next;
+          if (next === "light") {
             html.setAttribute("data-mode", "light");
           } else {
             html.removeAttribute("data-mode");
           }
-          html.classList.toggle("is-light", m === "light");
+          html.classList.toggle("is-light", next === "light");
+          modeBtn.setAttribute("aria-pressed", String(next === "light"));
 
-          if (syncSim) syncSimMode();
+          if (syncSim) {
+            if (window.__simSyncTheme) window.__simSyncTheme();
+            else syncSimStyle(activeStyle);
+          }
         };
 
-        // Apply immediately on load (no animation)
         applyMode(mode);
 
         modeBtn.addEventListener("click", () => {

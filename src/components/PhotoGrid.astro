@@ -1,0 +1,65 @@
+---
+import type { PhotoSet } from "../types/site";
+import { siteMeta } from "../config/site";
+
+interface Props {
+  sets: PhotoSet[];
+  /** Only render the first N photos of the first set (used on the home page). */
+  limit?: number;
+}
+
+const { sets, limit } = Astro.props;
+
+const visibleSets = limit
+  ? sets
+      .map((set) => ({ ...set, photos: set.photos.slice(0, limit) }))
+      .filter((set) => set.photos.length > 0)
+      .slice(0, 1)
+  : sets;
+
+const hasPhotos = visibleSets.some((set) => set.photos.length > 0);
+---
+
+{
+  hasPhotos ? (
+    <div class="photo-sets">
+      {visibleSets.map((set) => (
+        <section class="photo-set" id={set.slug}>
+          {!limit && (
+            <header class="photo-set__head">
+              <h3 class="photo-set__title">{set.title}</h3>
+              <p class="photo-set__meta">{set.meta}</p>
+              {set.description && <p class="photo-set__description">{set.description}</p>}
+            </header>
+          )}
+          <ul class="photo-grid">
+            {set.photos.map((photo) => (
+              <li class:list={["photo", { "photo--wide": photo.wide }]}>
+                <img
+                  src={photo.src}
+                  alt={photo.alt}
+                  width={photo.width}
+                  height={photo.height}
+                  loading="lazy"
+                  decoding="async"
+                />
+                {photo.caption && <p class="photo__caption">{photo.caption}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  ) : (
+    <div class="photo-empty">
+      <p class="photo-empty__lead">
+        The photo sets aren't up yet — I'm still editing and picking what's worth
+        showing.
+      </p>
+      <p class="photo-empty__note">
+        If you want to see work in the meantime, or you're after a shoot,{" "}
+        <a href={`mailto:${siteMeta.email}`}>email me</a> and I'll send some over.
+      </p>
+    </div>
+  )
+}

@@ -1,16 +1,30 @@
 ---
 import { siteMeta } from "../config/site";
-const [firstName, lastName] = siteMeta.name.split(" ");
 ---
 
-<section class="hero" id="top">
-  <div class="frame hero__content">
+<section class="hero" id="top" data-sim-anchor>
+  <div class="frame hero__inner">
     <div class="hero__text" data-readable-zone>
-      <h1 class="hero__name">
-        <span class="hero__first">{firstName}</span>
-        <span class="hero__last">{lastName}</span>
-      </h1>
-      <p class="hero__tagline">{siteMeta.tagline} Currently working on <a href="https://jvcopilot.ai" target="_blank" rel="noreferrer">JV Copilot</a>, affiliate campaign management software.</p>
+      <p class="hero__role">{siteMeta.role}</p>
+      <h1 class="hero__name">{siteMeta.name}</h1>
+      <p class="hero__intro">{siteMeta.intro}</p>
+      {
+        siteMeta.current && (
+          <p class="hero__current">
+            <span class="hero__current-label">Currently</span>
+            <span>
+              <a href={siteMeta.current.href} target="_blank" rel="noreferrer">
+                {siteMeta.current.label}
+              </a>
+              {` — ${siteMeta.current.description}`}
+            </span>
+          </p>
+        )
+      }
+      <div class="hero__actions">
+        <a class="button" href={`mailto:${siteMeta.email}`}>Get in touch</a>
+        <a class="button button--quiet" href="/work">See the work</a>
+      </div>
     </div>
   </div>
 </section>
@@ -42,6 +56,7 @@ const [firstName, lastName] = siteMeta.name.split(" ");
 
     queueUpdate();
     window.addEventListener("resize", queueUpdate, { passive: true });
+    window.addEventListener("scroll", queueUpdate, { passive: true });
 
     const observer = new ResizeObserver(queueUpdate);
     observer.observe(zone);

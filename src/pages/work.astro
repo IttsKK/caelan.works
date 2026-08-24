@@ -1,0 +1,25 @@
+---
+import ContactBlock from "../components/ContactBlock.astro";
+import WorkList from "../components/WorkList.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { projects } from "../data/projects";
+import { siteMeta } from "../config/site";
+
+const description =
+  "Websites, product work, and internal tools I've designed and built.";
+---
+
+<BaseLayout title={`Work — ${siteMeta.name}`} description={description}>
+  <section class="page-intro">
+    <div class="frame">
+      <h1 class="page-intro__title">Work</h1>
+      <p class="page-intro__lead">
+        Websites, product work, and the internal tools underneath them. Some of it
+        is private, so where there's no link there's a short note instead — happy
+        to walk through any of it.
+      </p>
+    </div>
+  </section>
+  <WorkList entries={projects} label="All work" id="all-work" />
+  <ContactBlock />
+</BaseLayout>

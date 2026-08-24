@@ -1,11 +1,35 @@
 ---
+import About from "../components/About.astro";
+import ContactBlock from "../components/ContactBlock.astro";
 import Hero from "../components/Hero.astro";
-import SiteFooter from "../components/SiteFooter.astro";
+import PhotoGrid from "../components/PhotoGrid.astro";
+import WorkList from "../components/WorkList.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { featuredProjects } from "../data/projects";
+import { photoSets } from "../data/photos";
 import { siteMeta } from "../config/site";
 ---
 
-<BaseLayout title={`${siteMeta.name} | Personal Site`} description={siteMeta.intro}>
+<BaseLayout title={`${siteMeta.name} — ${siteMeta.tagline}`}>
   <Hero />
-  <SiteFooter />
+  <About />
+  <WorkList
+    entries={featuredProjects}
+    label="Selected work"
+    more={{ label: "Everything I've worked on", href: "/work" }}
+  />
+  <section class="section" id="photography">
+    <div class="frame section__inner">
+      <p class="section__label">Photography</p>
+      <div class="section__body">
+        <p class="prose prose--lead">
+          The other half of what I do. Mostly personal work — the sets go up as I
+          finish editing them.
+        </p>
+        <PhotoGrid sets={photoSets} limit={4} />
+        <p class="section__more"><a href="/photography">See the photography</a></p>
+      </div>
+    </div>
+  </section>
+  <ContactBlock />
 </BaseLayout>

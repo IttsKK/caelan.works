@@ -1,0 +1,98 @@
+---
+import type { WorkEntry } from "../types/site";
+
+interface Props {
+  entries: WorkEntry[];
+  /** Section heading label. */
+  label?: string;
+  title?: string;
+  /** Optional link rendered next to the heading, e.g. to the full list. */
+  more?: { label: string; href: string };
+  id?: string;
+}
+
+const { entries, label = "Work", title, more, id = "work" } = Astro.props;
+
+const kindLabels = {
+  web: "Website",
+  product: "Product",
+  tool: "Tool",
+  robotics: "Robotics",
+} as const;
+
+const statusLabels = {
+  active: "In progress",
+  ongoing: "Ongoing",
+  shipped: "Shipped",
+  archive: "Archive",
+} as const;
+---
+
+<section class="section" id={id}>
+  <div class="frame section__inner">
+    <p class="section__label">{label}</p>
+    <div class="section__body">
+      {title && <h2 class="section__title">{title}</h2>}
+      <ul class="work-list">
+        {
+          entries.map((entry) => {
+            const Wrapper = entry.href ? "a" : "div";
+            return (
+              <li class="work-item">
+                <Wrapper
+                  class="work-item__link"
+                  href={entry.href}
+                  target={entry.href ? "_blank" : undefined}
+                  rel={entry.href ? "noreferrer" : undefined}
+                >
+                  <div class="work-item__head">
+                    <h3 class="work-item__title">
+                      {entry.title}
+                      {entry.href && (
+                        <span class="work-item__arrow" aria-hidden="true">
+                          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9L9 3" />
+                            <path d="M4 3H9V8" />
+                          </svg>
+                        </span>
+                      )}
+                    </h3>
+                    <p class="work-item__period">{entry.period}</p>
+                  </div>
+                  <p class="work-item__summary">{entry.summary}</p>
+                  <p class="work-item__meta">
+                    <span>{kindLabels[entry.kind]}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{entry.role}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{statusLabels[entry.status]}</span>
+                    {entry.note && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span>{entry.note}</span>
+                      </>
+                    )}
+                  </p>
+                  {entry.stack.length > 0 && (
+                    <ul class="work-item__stack">
+                      {entry.stack.map((item) => (
+                        <li>{item}</li>
+                      ))}
+                    </ul>
+                  )}
+                </Wrapper>
+              </li>
+            );
+          })
+        }
+      </ul>
+      {
+        more && (
+          <p class="section__more">
+            <a href={more.href}>{more.label}</a>
+          </p>
+        )
+      }
+    </div>
+  </div>
+</section>

@@ -14,13 +14,15 @@
   --panel-bg: rgba(20, 20, 20, 0.85);
   --panel-border: rgba(138, 132, 123, 0.15);
   --shadow-glow: rgba(12, 12, 12, 0.9);
-  --sim-opacity: 0.28;
-  --sim-opacity-hover: 0.42;
+  --sim-opacity: 0.16;
+  --sim-opacity-hover: 0.24;
+  --rule: rgba(138, 132, 123, 0.16);
 
   --font-sans: "Instrument Sans", "Helvetica Neue", "Nimbus Sans", sans-serif;
   --font-display: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", serif;
 
-  --frame: 64rem;
+  --frame: 62rem;
+  --radius: 10px;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -55,12 +57,15 @@
   --panel-bg: rgba(250, 247, 241, 0.72);
   --panel-border: rgba(53, 43, 33, 0.1);
   --shadow-glow: rgba(255, 249, 239, 0.42);
-  --sim-opacity: 0.15;
-  --sim-opacity-hover: 0.22;
+  --sim-opacity: 0.1;
+  --sim-opacity-hover: 0.15;
+  --rule: rgba(53, 43, 33, 0.14);
 }
 
-[data-mode="light"][data-style="amber"]  { --sim-color: #8f6633; }
-[data-mode="light"][data-style="blue"]   { --sim-color: #3d7696; }
-[data-mode="light"][data-style="ward"]   { --sim-color: #866245; }
-[data-mode="light"][data-style="neon"]   { --sim-color: #a44774; }
-[data-mode="light"][data-style="prism"]  { --sim-color: #666d84; }
+/* Light mode needs darker accents — the dark-mode values fail contrast on a
+   pale background, and accents carry links. */
+[data-mode="light"][data-style="amber"]  { --sim-color: #8f6633; --accent: #8a5a0d; --accent-dim: #b3862f; }
+[data-mode="light"][data-style="blue"]   { --sim-color: #3d7696; --accent: #16607f; --accent-dim: #4b8ba8; }
+[data-mode="light"][data-style="ward"]   { --sim-color: #866245; --accent: #7d5527; --accent-dim: #a98455; }
+[data-mode="light"][data-style="neon"]   { --sim-color: #a44774; --accent: #a81a56; --accent-dim: #c85b8c; }
+[data-mode="light"][data-style="prism"]  { --sim-color: #666d84; --accent: #454b7d; --accent-dim: #7a80ad; }

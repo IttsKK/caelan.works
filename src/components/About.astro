@@ -1,0 +1,39 @@
+---
+import { siteMeta } from "../config/site";
+
+const services = [
+  {
+    title: "Websites",
+    body: "Fast, accessible marketing sites and small web apps. Built to be edited later without me.",
+  },
+  {
+    title: "Product & internal tools",
+    body: "Dashboards, integrations, and the workflow software that sits behind a small team's day.",
+  },
+  {
+    title: "Photography",
+    body: "Available for shoots, and slowly putting a proper set of personal work online.",
+  },
+];
+---
+
+<section class="section" id="about">
+  <div class="frame section__inner">
+    <p class="section__label">About</p>
+    <div class="section__body">
+      <div class="prose">
+        {siteMeta.about.map((paragraph) => <p>{paragraph}</p>)}
+      </div>
+      <ul class="capabilities">
+        {
+          services.map((service) => (
+            <li class="capability">
+              <h3 class="capability__title">{service.title}</h3>
+              <p class="capability__body">{service.body}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</section>

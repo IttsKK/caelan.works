@@ -487,8 +487,39 @@
     seedInitial();
     updateGridSize();
 
-    if (!reducedMotion) {
+    // The sim belongs to the hero. On pages without one — and once you have
+    // scrolled past it — it fades out and stops burning frames.
+    const anchor = document.querySelector("[data-sim-anchor]");
+    let anchorVisible = !!anchor;
+
+    const start = () => {
+      if (reducedMotion || rafId || !anchorVisible) return;
       rafId = requestAnimationFrame(tick);
+    };
+
+    const stop = () => {
+      if (!rafId) return;
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    };
+
+    root.classList.toggle("sim--idle", !anchorVisible);
+
+    if (anchor && "IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          anchorVisible = entries[0].isIntersecting;
+          root.classList.toggle("sim--idle", !anchorVisible);
+          if (anchorVisible) start();
+          else stop();
+        },
+        { rootMargin: "10% 0px" },
+      );
+      observer.observe(anchor);
+    }
+
+    if (!reducedMotion) {
+      start();
 
       const updatePointer = (cx, cy) => {
         const bounds = baseScreen.getBoundingClientRect();
@@ -515,46 +546,42 @@
         clearPointer();
       });
 
-      // Touch — interact with sim unless touching an interactive element
+      // Touch — follow the finger, but never swallow the gesture: the page
+      // has to stay scrollable, so these listeners are passive.
       const isInteractive = (el) => {
         if (!el) return false;
         return !!el.closest("a, button, input, select, textarea, .controls");
       };
 
       document.addEventListener("touchstart", (e) => {
-        if (isInteractive(e.target)) return; // let buttons/links work normally
+        if (isInteractive(e.target)) return;
         touchActive = true;
         const t = e.touches[0];
         updatePointer(t.clientX, t.clientY);
-        e.preventDefault();
-      }, { passive: false });
+      }, { passive: true });
 
       document.addEventListener("touchmove", (e) => {
         if (!touchActive) return;
         const t = e.touches[0];
         updatePointer(t.clientX, t.clientY);
-        e.preventDefault();
-      }, { passive: false });
+      }, { passive: true });
 
       document.addEventListener("touchend", () => {
         touchActive = false;
         clearPointer();
-      });
+      }, { passive: true });
       document.addEventListener("touchcancel", () => {
         touchActive = false;
         clearPointer();
-      });
+      }, { passive: true });
     }
 
     window.addEventListener("resize", updateGridSize);
 
     document.addEventListener("visibilitychange", () => {
       if (reducedMotion) return;
-      if (document.hidden) {
-        if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
-      } else {
-        if (!rafId) rafId = requestAnimationFrame(tick);
-      }
+      if (document.hidden) stop();
+      else start();
     });
 
     // Allow theme switching
