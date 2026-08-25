@@ -35,15 +35,17 @@ const hasPhotos = visibleSets.some((set) => set.photos.length > 0);
           <ul class="photo-grid">
             {set.photos.map((photo) => (
               <li class:list={["photo", { "photo--wide": photo.wide }]}>
-                <img
-                  src={photo.src}
-                  alt={photo.alt}
-                  width={photo.width}
-                  height={photo.height}
-                  loading="lazy"
-                  decoding="async"
-                />
-                {photo.caption && <p class="photo__caption">{photo.caption}</p>}
+                <figure>
+                  <img
+                    src={photo.src}
+                    alt={photo.alt}
+                    width={photo.width}
+                    height={photo.height}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  {photo.caption && <figcaption class="photo__caption">{photo.caption}</figcaption>}
+                </figure>
               </li>
             ))}
           </ul>
@@ -52,12 +54,12 @@ const hasPhotos = visibleSets.some((set) => set.photos.length > 0);
     </div>
   ) : (
     <div class="photo-empty">
-      <p class="photo-empty__lead">
-        The photo sets aren't up yet — I'm still editing and picking what's worth
-        showing.
+      <p>
+        The sets aren't up yet — I'm still editing, and still deciding what's
+        worth showing.
       </p>
       <p class="photo-empty__note">
-        If you want to see work in the meantime, or you're after a shoot,{" "}
+        If you'd like to see work in the meantime, or you're after a shoot,{" "}
         <a href={`mailto:${siteMeta.email}`}>email me</a> and I'll send some over.
       </p>
     </div>

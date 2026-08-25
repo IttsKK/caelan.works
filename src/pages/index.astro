@@ -16,18 +16,18 @@ import { siteMeta } from "../config/site";
   <WorkList
     entries={featuredProjects}
     label="Selected work"
-    more={{ label: "Everything I've worked on", href: "/work" }}
+    more={{ label: "Everything else", href: "/work" }}
   />
   <section class="section" id="photography">
     <div class="frame section__inner">
       <p class="section__label">Photography</p>
       <div class="section__body">
-        <p class="prose prose--lead">
-          The other half of what I do. Mostly personal work — the sets go up as I
-          finish editing them.
+        <p class="prose">
+          The other half of it. Mostly personal work, put up a set at a time as
+          I finish editing.
         </p>
         <PhotoGrid sets={photoSets} limit={4} />
-        <p class="section__more"><a href="/photography">See the photography</a></p>
+        <p class="section__more"><a href="/photography">The photographs</a></p>
       </div>
     </div>
   </section>

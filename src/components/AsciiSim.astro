@@ -29,14 +29,16 @@
     const dens = new Float32Array(S);
     const dens0 = new Float32Array(S);
 
+    // Dot ramps, not ASCII art — the field should read as halftone grain
+    // behind the type rather than a terminal.
     const charSets = {
-      amber: " ░░▒▒▓▓▓███",
-      blue:  " ·•∘○◎●◉⦿⬤█",
-      ward:  " .,:ilI|/\\(){}[]#@",
-      neon:  " .·:;+=*xX%#█",
-      prism: " .·:◌◈◇◆◊◼⬢⬣█",
+      ward:  " ˙·∙•●",
+      amber: " ˙·∙•◉●",
+      blue:  " ˙·∘○◍●",
+      neon:  " ˙·∙•◆●",
+      prism: " ˙·∙◇◈●",
     };
-    const defaultStyle = "amber";
+    const defaultStyle = "ward";
     const waveDuration = 900;
     const waveFeather = 96;
     let activeStyle = defaultStyle;

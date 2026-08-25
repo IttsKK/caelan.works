@@ -9,15 +9,15 @@ const isCurrent = (href: string) => {
 };
 ---
 
-<header class="site-header">
-  <div class="frame site-header__inner">
-    <a class="site-header__name" href="/">{siteMeta.name}</a>
-    <nav class="site-header__nav" aria-label="Primary">
+<header class="masthead">
+  <div class="frame masthead__inner">
+    <a class="masthead__name" href="/">{siteMeta.name}</a>
+    <nav class="masthead__nav" aria-label="Primary">
       {
         siteMeta.nav.map((link) => (
           <a
             href={link.href}
-            class:list={["site-header__link", { "is-current": isCurrent(link.href) }]}
+            class:list={["masthead__link", { "is-current": isCurrent(link.href) }]}
             aria-current={isCurrent(link.href) ? "page" : undefined}
           >
             {link.label}
@@ -27,15 +27,3 @@ const isCurrent = (href: string) => {
     </nav>
   </div>
 </header>
-
-<script is:inline>
-  (() => {
-    const header = document.querySelector(".site-header");
-    if (!header) return;
-    const onScroll = () => {
-      header.classList.toggle("is-stuck", window.scrollY > 8);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-  })();
-</script>

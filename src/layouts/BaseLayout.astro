@@ -1,7 +1,7 @@
 ---
-import "@fontsource/instrument-sans/400.css";
-import "@fontsource/instrument-sans/500.css";
-import "@fontsource/instrument-serif/400.css";
+import "@fontsource-variable/fraunces/full.css";
+import "@fontsource-variable/newsreader/wght.css";
+import "@fontsource-variable/newsreader/wght-italic.css";
 import { siteMeta } from "../config/site";
 import AsciiSim from "../components/AsciiSim.astro";
 import SiteHeader from "../components/SiteHeader.astro";
@@ -38,21 +38,19 @@ const {
       // Applied before first paint so the page never flashes the wrong mode.
       (() => {
         const html = document.documentElement;
-        const styles = ["amber", "blue", "ward", "neon", "prism"];
+        const styles = ["ward", "amber", "blue", "neon", "prism"];
         const savedStyle = localStorage.getItem("site-style");
         html.setAttribute(
           "data-style",
-          styles.includes(savedStyle) ? savedStyle : "prism",
+          styles.includes(savedStyle) ? savedStyle : "ward",
         );
 
+        // Paper by default; dark only if asked for, here or in the OS.
         const savedMode = localStorage.getItem("sim-mode");
         const mode =
           savedMode ||
-          (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
-        if (mode === "light") {
-          html.setAttribute("data-mode", "light");
-          html.classList.add("is-light");
-        }
+          (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        html.setAttribute("data-mode", mode);
       })();
     </script>
   </head>
@@ -66,19 +64,19 @@ const {
     <SiteFooter />
     <div class="controls" role="group" aria-label="Appearance">
       <details class="controls__styles-wrap">
-        <summary class="controls__toggle" aria-label="Accent colour">
+        <summary class="controls__toggle" aria-label="Ink colour">
           <span class="controls__swatch" aria-hidden="true"></span>
         </summary>
-        <div class="controls__styles" role="group" aria-label="Accent colour">
-          <button class="controls__dot" data-style="prism" aria-label="Prism accent"></button>
-          <button class="controls__dot" data-style="ward" aria-label="Ward accent"></button>
-          <button class="controls__dot" data-style="amber" aria-label="Amber accent"></button>
-          <button class="controls__dot" data-style="blue" aria-label="Blue accent"></button>
-          <button class="controls__dot" data-style="neon" aria-label="Neon accent"></button>
+        <div class="controls__styles" role="group" aria-label="Ink colour">
+          <button class="controls__dot" data-style="ward" aria-label="Sienna ink"></button>
+          <button class="controls__dot" data-style="amber" aria-label="Amber ink"></button>
+          <button class="controls__dot" data-style="blue" aria-label="Blue ink"></button>
+          <button class="controls__dot" data-style="neon" aria-label="Magenta ink"></button>
+          <button class="controls__dot" data-style="prism" aria-label="Indigo ink"></button>
         </div>
       </details>
       <div class="controls__sep"></div>
-      <button class="controls__mode" aria-label="Toggle light and dark mode" aria-pressed="false">
+      <button class="controls__mode" aria-label="Toggle dark mode" aria-pressed="false">
         <svg class="controls__mode-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path class="controls__icon-moon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
           <g class="controls__icon-sun">
@@ -103,7 +101,7 @@ const {
         const modeBtn = document.querySelector(".controls__mode");
         const stylesWrap = document.querySelector(".controls__styles-wrap");
 
-        let activeStyle = html.getAttribute("data-style") || "prism";
+        let activeStyle = html.getAttribute("data-style") || "ward";
 
         const setActiveDot = (style) => {
           dots.forEach((dot) =>
@@ -135,17 +133,12 @@ const {
           if (!stylesWrap.contains(event.target)) stylesWrap.open = false;
         });
 
-        let mode = html.classList.contains("is-light") ? "light" : "dark";
+        let mode = html.getAttribute("data-mode") === "dark" ? "dark" : "light";
 
         const applyMode = (next, { syncSim = false } = {}) => {
           mode = next;
-          if (next === "light") {
-            html.setAttribute("data-mode", "light");
-          } else {
-            html.removeAttribute("data-mode");
-          }
-          html.classList.toggle("is-light", next === "light");
-          modeBtn.setAttribute("aria-pressed", String(next === "light"));
+          html.setAttribute("data-mode", next);
+          modeBtn.setAttribute("aria-pressed", String(next === "dark"));
 
           if (syncSim) {
             if (window.__simSyncTheme) window.__simSyncTheme();

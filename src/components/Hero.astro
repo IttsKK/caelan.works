@@ -3,28 +3,21 @@ import { siteMeta } from "../config/site";
 ---
 
 <section class="hero" id="top" data-sim-anchor>
-  <div class="frame hero__inner">
+  <div class="frame">
     <div class="hero__text" data-readable-zone>
-      <p class="hero__role">{siteMeta.role}</p>
       <h1 class="hero__name">{siteMeta.name}</h1>
       <p class="hero__intro">{siteMeta.intro}</p>
       {
         siteMeta.current && (
           <p class="hero__current">
-            <span class="hero__current-label">Currently</span>
-            <span>
-              <a href={siteMeta.current.href} target="_blank" rel="noreferrer">
-                {siteMeta.current.label}
-              </a>
-              {` — ${siteMeta.current.description}`}
-            </span>
+            <span class="hero__current-label">Currently — </span>
+            <a href={siteMeta.current.href} target="_blank" rel="noreferrer">{siteMeta.current.label}</a>{`, ${siteMeta.current.description}.`}
           </p>
         )
       }
-      <div class="hero__actions">
-        <a class="button" href={`mailto:${siteMeta.email}`}>Get in touch</a>
-        <a class="button button--quiet" href="/work">See the work</a>
-      </div>
+      <p class="hero__contact">
+        Reach me at <a href={`mailto:${siteMeta.email}`}>{siteMeta.email}</a>
+      </p>
     </div>
   </div>
 </section>

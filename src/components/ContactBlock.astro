@@ -2,13 +2,12 @@
 import { siteMeta } from "../config/site";
 ---
 
-<section class="section section--contact" id="contact">
+<section class="section" id="contact">
   <div class="frame section__inner">
     <p class="section__label">Contact</p>
     <div class="section__body">
       <p class="contact__lead">
-        Best way to reach me is email. I read everything and usually reply within
-        a day or two.
+        Email is best. I read everything, and I usually reply within a day or two.
       </p>
       <a class="contact__email" href={`mailto:${siteMeta.email}`}>{siteMeta.email}</a>
       {siteMeta.availability && <p class="contact__availability">{siteMeta.availability}</p>}
@@ -17,13 +16,7 @@ import { siteMeta } from "../config/site";
           siteMeta.links.map((link) => (
             <li>
               <a href={link.href} target="_blank" rel="noreferrer">
-                <span>{link.label}</span>
-                <span class="link-icon" aria-hidden="true">
-                  <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 9L9 3" />
-                    <path d="M4 3H9V8" />
-                  </svg>
-                </span>
+                {link.label}
               </a>
             </li>
           ))

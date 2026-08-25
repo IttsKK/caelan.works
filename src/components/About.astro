@@ -1,18 +1,19 @@
 ---
 import { siteMeta } from "../config/site";
 
-const services = [
+/** A ruled list, not a row of feature cards. */
+const practice = [
   {
-    title: "Websites",
-    body: "Fast, accessible marketing sites and small web apps. Built to be edited later without me.",
+    term: "Websites",
+    def: "Marketing sites and small web apps. Fast, accessible, and built to be edited later without me.",
   },
   {
-    title: "Product & internal tools",
-    body: "Dashboards, integrations, and the workflow software that sits behind a small team's day.",
+    term: "Product & tools",
+    def: "Dashboards, integrations, and the workflow software behind a small team's day.",
   },
   {
-    title: "Photography",
-    body: "Available for shoots, and slowly putting a proper set of personal work online.",
+    term: "Photographs",
+    def: "Available for shoots, and slowly putting a proper set of personal work online.",
   },
 ];
 ---
@@ -24,12 +25,12 @@ const services = [
       <div class="prose">
         {siteMeta.about.map((paragraph) => <p>{paragraph}</p>)}
       </div>
-      <ul class="capabilities">
+      <ul class="practice">
         {
-          services.map((service) => (
-            <li class="capability">
-              <h3 class="capability__title">{service.title}</h3>
-              <p class="capability__body">{service.body}</p>
+          practice.map((item) => (
+            <li>
+              <span class="practice__term">{item.term}</span>
+              <span class="practice__def">{item.def}</span>
             </li>
           ))
         }

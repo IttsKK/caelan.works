@@ -1,28 +1,41 @@
+/*
+ * Ink on paper. Light is the default; dark is the same ink, inverted.
+ * Colours are warm and flat on purpose — no gradients, no glow.
+ */
+
 :root {
-  --page: #0c0c0c;
+  --page: #f2ece0;
   --page-bg: var(--page);
-  --surface: #141414;
-  --text: #e8e4df;
-  --text-muted: #8a847b;
-  --text-soft: #b7afa5;
-  --accent: #7eb8a2;
-  --accent-dim: #4a7d6a;
-  --accent-soft: rgba(126, 184, 162, 0.08);
-  --sim-color: #4a7d6a;
-  --overlay: rgba(12, 12, 12, 0.85);
-  --overlay-strong: rgba(12, 12, 12, 0.95);
-  --panel-bg: rgba(20, 20, 20, 0.85);
-  --panel-border: rgba(138, 132, 123, 0.15);
-  --shadow-glow: rgba(12, 12, 12, 0.9);
-  --sim-opacity: 0.16;
-  --sim-opacity-hover: 0.24;
-  --rule: rgba(138, 132, 123, 0.16);
+  --surface: #f8f3e9;
+  --text: #221c14;
+  --text-soft: #4d4235;
+  --text-muted: #837767;
+  --accent: #7a4a1e;
+  --accent-dim: #a9814f;
+  --accent-soft: rgba(122, 74, 30, 0.1);
+  --sim-color: #8a6a45;
+  --rule: rgba(34, 28, 20, 0.18);
+  --rule-soft: rgba(34, 28, 20, 0.09);
+  --overlay: rgba(242, 236, 224, 0.82);
+  --overlay-strong: rgba(242, 236, 224, 0.96);
+  --panel-bg: rgba(248, 243, 233, 0.9);
+  --panel-border: rgba(34, 28, 20, 0.14);
+  --shadow-glow: transparent;
+  --sim-opacity: 0.2;
+  --sim-opacity-hover: 0.28;
 
-  --font-sans: "Instrument Sans", "Helvetica Neue", "Nimbus Sans", sans-serif;
-  --font-display: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", serif;
+  --font-text: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
+  --font-display: "Fraunces Variable", "Newsreader Variable", Georgia, serif;
 
-  --frame: 62rem;
-  --radius: 10px;
+  /* Fraunces carries the personality in its SOFT and WONK axes — softened
+     joins and wonky alternates. Without them it's just another serif. The
+     opsz axis matters too: high for display sizes, low for small text, or
+     the contrast is wrong at both ends. */
+  --display-large: "opsz" 120, "SOFT" 60, "WONK" 1;
+  --display-small: "opsz" 16, "SOFT" 35, "WONK" 1;
+
+  --measure: 34rem;
+  --frame: 60rem;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -30,42 +43,38 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
   --space-7: 3rem;
-  --space-8: 4rem;
+  --space-8: 4.5rem;
+  --space-9: 7rem;
 }
 
-/* ── Sim color themes ── */
-[data-style="amber"]  { --sim-color: #9a7030; --accent: #f0b445; --accent-dim: #d4952a; }
-[data-style="blue"]   { --sim-color: #2d7aa5; --accent: #5cc5f0; --accent-dim: #3a9fd5; }
-[data-style="ward"]   { --sim-color: #8f6c48; --accent: #ddb075; --accent-dim: #b7864f; }
-[data-style="neon"]   { --sim-color: #b33874; --accent: #ff5ca8; --accent-dim: #df2f86; }
-[data-style="prism"]  { --sim-color: #6b7089; --accent: #c5c9ff; --accent-dim: #959cd8; }
+/* ── Accent inks ── */
+[data-style="ward"]  { --accent: #7a4a1e; --accent-dim: #a9814f; --sim-color: #8a6a45; }
+[data-style="amber"] { --accent: #86590a; --accent-dim: #b08c3c; --sim-color: #94743c; }
+[data-style="blue"]  { --accent: #1b5a75; --accent-dim: #5289a2; --sim-color: #55809a; }
+[data-style="neon"]  { --accent: #a3235c; --accent-dim: #c5698f; --sim-color: #a3667f; }
+[data-style="prism"] { --accent: #454b7d; --accent-dim: #7d83ac; --sim-color: #6f748f; }
 
-/* ── Light mode ── */
-[data-mode="light"] {
-  --page: #efeae0;
-  --page-bg:
-    radial-gradient(circle at 14% 12%, rgba(205, 184, 156, 0.22), transparent 28%),
-    radial-gradient(circle at 82% 76%, rgba(170, 185, 205, 0.16), transparent 32%),
-    linear-gradient(180deg, #f7f3eb 0%, #f1ece3 42%, #ebe5db 100%);
-  --surface: #faf7f1;
-  --text: #1d1812;
-  --text-muted: #716659;
-  --text-soft: #55493d;
-  --accent-soft: rgba(126, 184, 162, 0.08);
-  --overlay: rgba(239, 234, 224, 0.7);
-  --overlay-strong: rgba(239, 234, 224, 0.9);
-  --panel-bg: rgba(250, 247, 241, 0.72);
-  --panel-border: rgba(53, 43, 33, 0.1);
-  --shadow-glow: rgba(255, 249, 239, 0.42);
-  --sim-opacity: 0.1;
-  --sim-opacity-hover: 0.15;
-  --rule: rgba(53, 43, 33, 0.14);
+/* ── Dark: the same ink, inverted ── */
+[data-mode="dark"] {
+  --page: #16120c;
+  --page-bg: var(--page);
+  --surface: #1e1912;
+  --text: #ece4d5;
+  --text-soft: #c0b5a2;
+  --text-muted: #8d8272;
+  --accent-soft: rgba(236, 228, 213, 0.08);
+  --rule: rgba(236, 228, 213, 0.16);
+  --rule-soft: rgba(236, 228, 213, 0.08);
+  --overlay: rgba(22, 18, 12, 0.82);
+  --overlay-strong: rgba(22, 18, 12, 0.96);
+  --panel-bg: rgba(30, 25, 18, 0.9);
+  --panel-border: rgba(236, 228, 213, 0.14);
+  --sim-opacity: 0.16;
+  --sim-opacity-hover: 0.24;
 }
 
-/* Light mode needs darker accents — the dark-mode values fail contrast on a
-   pale background, and accents carry links. */
-[data-mode="light"][data-style="amber"]  { --sim-color: #8f6633; --accent: #8a5a0d; --accent-dim: #b3862f; }
-[data-mode="light"][data-style="blue"]   { --sim-color: #3d7696; --accent: #16607f; --accent-dim: #4b8ba8; }
-[data-mode="light"][data-style="ward"]   { --sim-color: #866245; --accent: #7d5527; --accent-dim: #a98455; }
-[data-mode="light"][data-style="neon"]   { --sim-color: #a44774; --accent: #a81a56; --accent-dim: #c85b8c; }
-[data-mode="light"][data-style="prism"]  { --sim-color: #666d84; --accent: #454b7d; --accent-dim: #7a80ad; }
+[data-mode="dark"][data-style="ward"]  { --accent: #d8a068; --accent-dim: #9c7346; --sim-color: #8a6541; }
+[data-mode="dark"][data-style="amber"] { --accent: #e6b458; --accent-dim: #a8823a; --sim-color: #927034; }
+[data-mode="dark"][data-style="blue"]  { --accent: #7cc0dc; --accent-dim: #4c8299; --sim-color: #3f7a95; }
+[data-mode="dark"][data-style="neon"]  { --accent: #ef7aa8; --accent-dim: #ab4f72; --sim-color: #9c4569; }
+[data-mode="dark"][data-style="prism"] { --accent: #b2b7ee; --accent-dim: #7378a5; --sim-color: #676c88; }

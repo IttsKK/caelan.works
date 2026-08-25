@@ -44,8 +44,24 @@ than an empty grid.
 
 ## Notes on the design
 
-- The ASCII fluid simulation belongs to the hero only. It fades out and stops
-  animating once you scroll past it, and never runs on pages without a hero.
-- The colour accent and light/dark mode are both remembered in `localStorage`.
-  Mode follows the system preference until someone picks one.
+It's meant to read as printed matter — paper, ink, and rules — rather than a
+product landing page. So: no cards, no pill buttons, no tag chips, and no
+letterspaced all-caps labels. Metadata is one italic line; marginal labels are
+set like running heads; work entries are numbered like plates in a catalogue.
+
+- **Type** is [Fraunces](https://fonts.google.com/specimen/Fraunces) for display
+  and [Newsreader](https://fonts.google.com/specimen/Newsreader) for text, both
+  self-hosted variable fonts. Fraunces' personality lives in its `SOFT` and
+  `WONK` axes, and it needs the right `opsz` at each size — see
+  `--display-large` / `--display-small` in `src/styles/tokens.css`. Changing
+  those two values changes the whole voice of the site.
+- **Paper is the default.** Dark mode is the same warm ink inverted, and only
+  applies if asked for here or in the OS.
+- **The fluid simulation** is grain, not a feature. It uses dot ramps rather
+  than ASCII art, belongs to the hero only, and fades out and stops animating
+  once you scroll past it. It never runs on pages without a hero.
+- The ink colour and light/dark mode are both remembered in `localStorage`. The
+  five ink swatches live behind the small control at the bottom right — delete
+  the `.controls__styles-wrap` block in `BaseLayout.astro` to drop them and
+  leave just the mode toggle.
 - `prefers-reduced-motion` turns off the simulation and all transitions.
