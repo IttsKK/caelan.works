@@ -23,8 +23,6 @@ export interface SiteMeta {
   now: string;
   /** About section copy. One string per paragraph. */
   about: string[];
-  /** The separate photography site. Shown as one quiet footer link; leave empty to hide it. */
-  photography: string;
   email: string;
   links: ExternalLink[];
   nav: NavLink[];

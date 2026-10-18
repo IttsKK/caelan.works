@@ -1,0 +1,613 @@
+/*
+ * A warm, dark board with a fine grain, a little like paper or cork in low
+ * light. The only real colour comes from the photographs; the text is small
+ * mono, set in the corners.
+ */
+
+:root {
+  --board: #110f0d;
+  --text: #ebe7df;
+  --muted: #8a847a;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  /* The site's own face, used for the name so it matches the rest of the site. */
+  --sans: "Archivo Variable", "Helvetica Neue", Helvetica, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--board);
+  color: var(--text);
+}
+
+/* The 12px is on the body, not the page, so `rem` keeps its usual size. */
+body {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* With a mouse, the crosshair replaces the system cursor everywhere. */
+.has-cursor,
+.has-cursor * {
+  cursor: none !important;
+}
+
+p {
+  margin: 0;
+}
+
+a,
+button {
+  color: inherit;
+  font: inherit;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--muted);
+}
+
+:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 4px;
+}
+
+/* ── Board ── */
+
+/* Grain: warm speckle from SVG noise, on a large tile so it doesn't visibly
+   repeat. The script moves it with the board but never scales it. */
+.board {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background-color: var(--board);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .7 0 0 0 0 .58 0 0 0 0 .44 0 0 0 1.2 -.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 512px 512px;
+}
+
+/* Set names above each set's area on the board; placed by the script. */
+.set-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  color: var(--muted);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+
+.set-label.is-visible {
+  opacity: 1;
+}
+
+/* The name links back to the home page. It's set exactly like the name in the
+   header on the rest of the site. */
+.brand {
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.brand:hover {
+  color: var(--muted);
+}
+
+/* The set filter, next to the name. */
+.masthead {
+  display: flex;
+  align-items: baseline;
+  gap: 28px;
+}
+
+.sets {
+  display: flex;
+  gap: 16px;
+}
+
+.sets button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.sets button:hover,
+.sets button[aria-pressed="true"] {
+  color: var(--text);
+}
+
+[data-mode="gallery"] ~ .chrome .sets,
+.chrome:has(~ [data-mode="gallery"]) .sets {
+  visibility: hidden;
+}
+
+/* The spectrum's axis: a hairline with its two ends labelled. Placed in
+   screen px by the script. */
+.axis {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid rgba(235, 231, 223, 0.18);
+  color: var(--muted);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+
+.axis.is-visible {
+  opacity: 1;
+}
+
+/* While dragging, the cross closes in a little. */
+.board.is-dragging ~ .cursor .cursor__cross::before {
+  left: -5px;
+  width: 10px;
+}
+
+.board.is-dragging ~ .cursor .cursor__cross::after {
+  top: -5px;
+  height: 10px;
+}
+
+/* A soft vignette, also fixed. */
+.board::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 50%, rgba(0, 0, 0, 0.5));
+}
+
+.world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+/* ── Prints ── */
+
+.print {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0;
+  border: 0;
+  background: #1a1918;
+  opacity: 0;
+  transform-origin: 50% 50%;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+  transition: box-shadow 300ms ease;
+}
+
+.print.is-lifted {
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.6);
+}
+
+.print:focus-visible {
+  outline: none;
+}
+
+/* Light on a tilted photo, set from the script: a soft highlight from a
+   fixed light up and to the left, and shade when it turns away. */
+.print::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 120% 90% at var(--gx, 30%) var(--gy, 20%),
+      rgba(255, 255, 255, calc(var(--shine, 0) * 0.22)),
+      rgba(255, 255, 255, calc(var(--shine, 0) * 0.05)) 45%,
+      transparent 75%
+    ),
+    rgba(0, 0, 0, calc(var(--shade, 0) * 0.16));
+  mix-blend-mode: soft-light;
+}
+
+/* With WebGL, the surface-mapped glint replaces the sheen above. */
+.print.has-glint::after {
+  display: none;
+}
+
+.glint {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+}
+
+.print img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* ── Corner text ── */
+
+.chrome {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  pointer-events: none;
+}
+
+.chrome > * {
+  pointer-events: auto;
+}
+
+/* Same height and the same left and right edges as the site's header, so
+   the name stays put when you move between the two parts. */
+.chrome--top {
+  top: 0;
+  height: 4.5rem;
+  padding: 0 max(1.5rem, calc((100vw - 82rem) / 2 + 1.5rem));
+}
+
+@media (max-width: 640px) {
+  .chrome--top {
+    padding-inline: 1rem;
+  }
+
+  .masthead {
+    gap: 14px;
+  }
+
+  .sets {
+    gap: 11px;
+  }
+}
+
+.chrome--bottom {
+  bottom: 0;
+}
+
+.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.bar[hidden] {
+  display: none;
+}
+
+.bar button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.bar button:hover {
+  color: var(--text);
+}
+
+[data-caption] {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dial: an arc of ticks with a marker at the current photo, centred above
+   the bottom bar. */
+.dial {
+  position: fixed;
+  left: 50%;
+  bottom: 44px;
+  width: min(480px, 76vw);
+  transform: translateX(-50%);
+  touch-action: none;
+  cursor: pointer;
+}
+
+.dial__arc {
+  fill: none;
+  stroke: rgba(235, 231, 223, 0.12);
+  stroke-width: 1;
+}
+
+.dial__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.dial__tick {
+  stroke: var(--muted);
+  stroke-width: 1.25;
+  opacity: 0.75;
+  transition: opacity 150ms ease;
+}
+
+.dial__tick.is-active {
+  opacity: 0;
+}
+
+.dial__marker {
+  transition: transform 260ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.dial__marker line {
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.dial__marker circle {
+  fill: var(--text);
+}
+
+.gallery-nav,
+.arrange {
+  display: flex;
+  gap: 18px;
+}
+
+.zoom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.zoom span {
+  min-width: 4ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom button,
+.arrange button {
+  color: var(--muted);
+}
+
+.zoom button {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.arrange button[aria-pressed="true"] {
+  color: var(--text);
+}
+
+/* ── Crosshair cursor ── */
+
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  mix-blend-mode: difference;
+}
+
+.cursor.is-visible {
+  opacity: 1;
+}
+
+.cursor.is-gone {
+  opacity: 0;
+  transition: none;
+}
+
+.cursor__cross {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.cursor__cross::before,
+.cursor__cross::after {
+  content: "";
+  position: absolute;
+  background: #fff;
+  transition: all 220ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.cursor__cross::before {
+  top: -1px;
+  left: -7px;
+  width: 14px;
+  height: 2px;
+}
+
+.cursor__cross::after {
+  top: -7px;
+  left: -1px;
+  width: 2px;
+  height: 14px;
+}
+
+/* Over a print the cross opens up and says what a click will do. */
+.cursor.has-label .cursor__cross::before {
+  left: -11px;
+  width: 22px;
+}
+
+.cursor.has-label .cursor__cross::after {
+  top: -11px;
+  height: 22px;
+}
+
+.cursor__label {
+  position: absolute;
+  top: 9px;
+  left: 12px;
+  white-space: nowrap;
+  color: #fff;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.cursor.has-label .cursor__label {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+/* ── Editor (`/?edit`, dev only) ── */
+
+.is-editing .print.is-new {
+  outline: var(--edit-line, 4px) dashed rgba(235, 231, 223, 0.45);
+  outline-offset: calc(var(--edit-line, 4px) * 2);
+}
+
+.is-editing .print.is-selected {
+  outline: var(--edit-line, 4px) solid #e8b04b;
+  outline-offset: calc(var(--edit-line, 4px) * 2);
+}
+
+.editor {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  z-index: 30;
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgba(235, 231, 223, 0.14);
+  border-radius: 8px;
+  background: rgba(14, 12, 10, 0.92);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  cursor: auto;
+}
+
+.has-cursor .editor,
+.has-cursor .editor * {
+  cursor: auto !important;
+}
+
+.editor__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor button {
+  padding: 5px 9px;
+  border: 1px solid rgba(235, 231, 223, 0.16);
+  border-radius: 5px;
+  background: none;
+  color: var(--text);
+}
+
+.editor button:hover {
+  border-color: rgba(235, 231, 223, 0.4);
+}
+
+.editor__set {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.editor select {
+  padding: 4px 6px;
+  border: 1px solid rgba(235, 231, 223, 0.16);
+  border-radius: 5px;
+  background: #1a1714;
+  color: var(--text);
+  font: inherit;
+}
+
+.editor__save {
+  min-width: 7ch;
+}
+
+.editor__save.is-dirty {
+  border-color: #e8b04b;
+  background: #e8b04b;
+  color: #14110e;
+}
+
+.editor__sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: rgba(235, 231, 223, 0.14);
+}
+
+.editor__row--info {
+  color: var(--muted);
+}
+
+.editor__hint {
+  color: #5f5a52;
+  font-size: 11px;
+}
+
+.editor-marquee {
+  position: fixed;
+  z-index: 25;
+  border: 1px solid #e8b04b;
+  background: rgba(232, 176, 75, 0.08);
+  pointer-events: none;
+}
+
+.editor-drop {
+  position: fixed;
+  inset: 16px;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(235, 231, 223, 0.4);
+  border-radius: 12px;
+  background: rgba(14, 12, 10, 0.7);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.editor-marquee[hidden],
+.editor-drop[hidden] {
+  display: none;
+}
+
+.arrange[hidden] {
+  display: none;
+}

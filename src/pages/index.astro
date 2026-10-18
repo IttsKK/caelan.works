@@ -1,6 +1,8 @@
 ---
 import { Image } from "astro:assets";
+import PhotoStrip from "../components/PhotoStrip.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { featured } from "../data/photos";
 import { projects } from "../data/projects";
 import { siteMeta } from "../config/site";
 ---
@@ -63,6 +65,14 @@ import { siteMeta } from "../config/site";
         ))
       }
     </ul>
+  </section>
+
+  <section class="section wrap" id="photography" aria-labelledby="photography-title">
+    <div class="section__head">
+      <h2 class="section__title" id="photography-title">Photography</h2>
+      <a href="/photography">Open the board</a>
+    </div>
+    <PhotoStrip files={featured} />
   </section>
 
   <section class="section wrap about" id="about" aria-labelledby="about-title">

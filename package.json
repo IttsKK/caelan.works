@@ -14,11 +14,13 @@
   "dependencies": {
     "@astrojs/sitemap": "^3.7.0",
     "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "@vercel/analytics": "^2.0.1",
     "astro": "^5.18.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
+    "@types/node": "^26.6.5",
     "typescript": "^5.9.3"
   }
 }
