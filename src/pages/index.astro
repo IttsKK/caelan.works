@@ -5,6 +5,19 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { featured } from "../data/photos";
 import { projects } from "../data/projects";
 import { siteMeta } from "../config/site";
+
+/** Split a paragraph into plain text and `[text](href)` links. */
+const withLinks = (text: string) => {
+  const parts: { text: string; href?: string }[] = [];
+  let last = 0;
+  for (const match of text.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)) {
+    if (match.index > last) parts.push({ text: text.slice(last, match.index) });
+    parts.push({ text: match[1], href: match[2] });
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) });
+  return parts;
+};
 ---
 
 <BaseLayout>
@@ -78,7 +91,11 @@ import { siteMeta } from "../config/site";
   <section class="section wrap about" id="about" aria-labelledby="about-title">
     <h2 class="section__title" id="about-title">About</h2>
     <div class="about__body">
-      {siteMeta.about.map((paragraph) => <p>{paragraph}</p>)}
+      {
+        siteMeta.about.map((paragraph) => (
+          <p>{withLinks(paragraph).map((part) => (part.href ? <a href={part.href}>{part.text}</a> : part.text))}</p>
+        ))
+      }
     </div>
   </section>
 </BaseLayout>

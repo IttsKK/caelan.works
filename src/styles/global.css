@@ -391,6 +391,14 @@ a:hover {
   letter-spacing: -0.005em;
 }
 
+.about__body a {
+  text-decoration-color: var(--muted);
+}
+
+.about__body a:hover {
+  text-decoration-color: currentColor;
+}
+
 .about__body p + p {
   margin-top: 1em;
 }

@@ -21,7 +21,7 @@ export interface SiteMeta {
   intro: string;
   /** A quieter line under it: what I'm doing now. Leave empty to hide it. */
   now: string;
-  /** About section copy. One string per paragraph. */
+  /** About section copy. One string per paragraph; `[text](/path)` makes a link. */
   about: string[];
   email: string;
   links: ExternalLink[];
