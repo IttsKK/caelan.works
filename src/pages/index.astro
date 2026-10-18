@@ -1,35 +1,123 @@
 ---
-import About from "../components/About.astro";
-import ContactBlock from "../components/ContactBlock.astro";
-import Hero from "../components/Hero.astro";
-import PhotoGrid from "../components/PhotoGrid.astro";
-import WorkList from "../components/WorkList.astro";
+import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { featuredProjects } from "../data/projects";
-import { photoSets } from "../data/photos";
+import { projects } from "../data/projects";
 import { siteMeta } from "../config/site";
 ---
 
-<BaseLayout title={`${siteMeta.name} — ${siteMeta.tagline}`}>
-  <Hero />
-  <About />
-  <WorkList
-    entries={featuredProjects}
-    label="Selected work"
-    more={{ label: "Everything else", href: "/work" }}
-  />
-  <section class="section" id="photography">
-    <div class="frame section__inner">
-      <p class="section__label">Photography</p>
-      <div class="section__body">
-        <p class="prose">
-          The other half of it. Mostly personal work, put up a set at a time as
-          I finish editing.
-        </p>
-        <PhotoGrid sets={photoSets} limit={4} />
-        <p class="section__more"><a href="/photography">The photographs</a></p>
-      </div>
+<BaseLayout>
+  <section class="hero wrap" data-hero>
+    <div class="hero__intro">
+      <h1 class="hero__name">{siteMeta.name}</h1>
+      <p class="hero__line">{siteMeta.intro}</p>
+      {siteMeta.now && <p class="hero__now">{siteMeta.now}</p>}
+    </div>
+
+    <div class="hero__refs">
+      <h2 class="hero__label">Selected work</h2>
+      <ul>
+        {
+          projects.map((project, i) => (
+            <li>
+              <a class="ref" href={`/work/${project.slug}`} data-ref={i}>
+                <span class="ref__title">{project.title}</span>
+                <span class="ref__year">{project.year}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    <div class="hero__preview" aria-hidden="true">
+      {
+        projects.map((project, i) => (
+          <Image src={project.cover.src} alt="" widths={[480, 960]} sizes="420px" data-ref={i} />
+        ))
+      }
     </div>
   </section>
-  <ContactBlock />
+
+  <section class="section wrap" id="work" aria-labelledby="work-title">
+    <h2 class="section__title" id="work-title">Work</h2>
+    <ul class="work">
+      {
+        projects.map((project) => (
+          <li>
+            <a class="work__item" href={`/work/${project.slug}`}>
+              <div class="shot">
+                <Image
+                  src={project.cover.src}
+                  alt={project.cover.alt}
+                  widths={[640, 960, 1280, 1920]}
+                  sizes="(min-width: 1360px) 632px, (min-width: 760px) 50vw, 100vw"
+                />
+              </div>
+              <div class="work__caption">
+                <h3 class="work__title">{project.title}</h3>
+                <p class="work__year">{project.year}</p>
+                <p class="work__summary">{project.summary}</p>
+              </div>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="section wrap about" id="about" aria-labelledby="about-title">
+    <h2 class="section__title" id="about-title">About</h2>
+    <div class="about__body">
+      {siteMeta.about.map((paragraph) => <p>{paragraph}</p>)}
+    </div>
+  </section>
 </BaseLayout>
+
+<script is:inline>
+  // Hovering a title in the hero shows that site, trailing the pointer.
+  (() => {
+    const hero = document.querySelector("[data-hero]");
+    const preview = hero && hero.querySelector(".hero__preview");
+    if (!preview || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+
+    const images = [...preview.querySelectorAll("img")];
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let x = 0;
+    let y = 0;
+    let tx = 0;
+    let ty = 0;
+    let raf = 0;
+
+    const place = () => {
+      x += (tx - x) * (reduced ? 1 : 0.18);
+      y += (ty - y) * (reduced ? 1 : 0.18);
+      preview.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.5 ? requestAnimationFrame(place) : 0;
+    };
+
+    // Sit above the pointer and never over the list itself.
+    const refs = hero.querySelector(".hero__refs");
+    const follow = (event) => {
+      const box = hero.getBoundingClientRect();
+      const limit = refs.getBoundingClientRect().left - box.left - preview.offsetWidth - 32;
+      tx = Math.min(event.clientX - box.left - preview.offsetWidth / 2, limit);
+      ty = event.clientY - box.top - preview.offsetHeight - 24;
+      if (!raf) raf = requestAnimationFrame(place);
+    };
+
+    hero.querySelectorAll(".ref").forEach((ref) => {
+      ref.addEventListener("pointerenter", (event) => {
+        images.forEach((img) => img.classList.toggle("is-active", img.dataset.ref === ref.dataset.ref));
+        if (!preview.classList.contains("is-visible")) {
+          follow(event);
+          x = tx;
+          y = ty;
+          place();
+        }
+        preview.classList.add("is-visible");
+      });
+      ref.addEventListener("pointermove", follow);
+      ref.addEventListener("pointerleave", () => preview.classList.remove("is-visible"));
+    });
+  })();
+</script>

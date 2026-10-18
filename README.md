@@ -15,53 +15,34 @@ bunx astro check # typecheck
 
 ## Where the content lives
 
-Almost everything is data, so the pages don't need editing to stay current.
-
 | What | File |
 | --- | --- |
-| Name, intro, About copy, email, nav, social links | `src/config/site.ts` |
-| What I'm working on right now (the "Currently" line) | `src/config/site.ts` → `current` |
-| Work entries | `src/data/projects.ts` |
-| Photo sets | `src/data/photos.ts` |
-| What I offer (the three cards in About) | `src/components/About.astro` |
-| Colours, type, spacing | `src/styles/tokens.css` |
+| Name, intro, About copy, email, nav, links | `src/config/site.ts` |
+| Work entries and their screenshots | `src/data/projects.ts`, `src/assets/work/` |
+| Colours, type, layout | `src/styles/global.css` |
+
+Photography lives on its own site. Put its URL in `photography` in
+`src/config/site.ts` to show a single link to it in the footer.
 
 ### Adding a project
 
-Add an entry to `src/data/projects.ts`. It shows up on `/work` automatically;
-set `featured: true` to also put it on the home page. Leave `href` off for
-private work and put a short `note` ("Private", "Client work") in its place.
+Add an entry to `src/data/projects.ts`. It shows up in the "Selected work"
+list in the hero (with a hover preview), in the Work grid, and on its own page
+at `/work/<slug>`. Each entry needs, all at 2x:
 
-### Adding photos
-
-1. Put the files in `public/photos/` — JPEG or WebP, long edge around 2000px.
-2. Add a set to `photoSets` in `src/data/photos.ts`.
-3. Give each photo its real `width` and `height` so the grid doesn't reflow
-   while images load. `wide: true` makes a frame span two columns.
-
-While `photoSets` is empty, `/photography` shows a short placeholder rather
-than an empty grid.
+- `cover` — the first screen at 1440×900.
+- `mobile` — one phone screen at 390×844.
+- `pages` — full-length desktop captures at 1440 wide, home page first. With
+  more than one, each is labelled on the project page.
 
 ## Notes on the design
 
-It's meant to read as printed matter — paper, ink, and rules — rather than a
-product landing page. So: no cards, no pill buttons, no tag chips, and no
-letterspaced all-caps labels. Metadata is one italic line; marginal labels are
-set like running heads; work entries are numbered like plates in a catalogue.
+Dark by default; the footer has a light-mode toggle, remembered in
+`localStorage`. Quiet on purpose, so the screenshots carry the colour, with a
+faint grain over everything so the flat background doesn't feel like a
+template. One typeface, [Archivo](https://fonts.google.com/specimen/Archivo),
+with a touch of its width axis on headings. Everything lives in
+`src/styles/global.css`.
 
-- **Type** is [Fraunces](https://fonts.google.com/specimen/Fraunces) for display
-  and [Newsreader](https://fonts.google.com/specimen/Newsreader) for text, both
-  self-hosted variable fonts. Fraunces' personality lives in its `SOFT` and
-  `WONK` axes, and it needs the right `opsz` at each size — see
-  `--display-large` / `--display-small` in `src/styles/tokens.css`. Changing
-  those two values changes the whole voice of the site.
-- **Paper is the default.** Dark mode is the same warm ink inverted, and only
-  applies if asked for here or in the OS.
-- **The fluid simulation** is grain, not a feature. It uses dot ramps rather
-  than ASCII art, belongs to the hero only, and fades out and stops animating
-  once you scroll past it. It never runs on pages without a hero.
-- The ink colour and light/dark mode are both remembered in `localStorage`. The
-  five ink swatches live behind the small control at the bottom right — delete
-  the `.controls__styles-wrap` block in `BaseLayout.astro` to drop them and
-  leave just the mode toggle.
-- `prefers-reduced-motion` turns off the simulation and all transitions.
+Hovering a title in the hero's work list shows that site trailing the pointer.
+It only runs with a mouse; on touch screens the list is just links.

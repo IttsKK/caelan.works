@@ -1,13 +1,9 @@
 ---
-import "@fontsource-variable/fraunces/full.css";
-import "@fontsource-variable/newsreader/wght.css";
-import "@fontsource-variable/newsreader/wght-italic.css";
+import "@fontsource-variable/archivo/wdth.css";
 import { siteMeta } from "../config/site";
-import AsciiSim from "../components/AsciiSim.astro";
 import SiteHeader from "../components/SiteHeader.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import Analytics from "@vercel/analytics/astro";
-import "../styles/tokens.css";
 import "../styles/global.css";
 
 interface Props {
@@ -35,125 +31,17 @@ const {
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site ?? Astro.url).href} />
     <script is:inline>
-      // Applied before first paint so the page never flashes the wrong mode.
-      (() => {
-        const html = document.documentElement;
-        const styles = ["ward", "amber", "blue", "neon", "prism"];
-        const savedStyle = localStorage.getItem("site-style");
-        html.setAttribute(
-          "data-style",
-          styles.includes(savedStyle) ? savedStyle : "ward",
-        );
-
-        // Paper by default; dark only if asked for, here or in the OS.
-        const savedMode = localStorage.getItem("sim-mode");
-        const mode =
-          savedMode ||
-          (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-        html.setAttribute("data-mode", mode);
-      })();
+      // Dark unless light was chosen; set before first paint to avoid a flash.
+      document.documentElement.dataset.theme = localStorage.getItem("theme") === "light" ? "light" : "dark";
     </script>
   </head>
   <body>
-    <AsciiSim />
     <a class="skip-link" href="#content">Skip to content</a>
     <SiteHeader />
-    <main class="page-content" id="content">
+    <main id="content">
       <slot />
     </main>
     <SiteFooter />
-    <div class="controls" role="group" aria-label="Appearance">
-      <details class="controls__styles-wrap">
-        <summary class="controls__toggle" aria-label="Ink colour">
-          <span class="controls__swatch" aria-hidden="true"></span>
-        </summary>
-        <div class="controls__styles" role="group" aria-label="Ink colour">
-          <button class="controls__dot" data-style="ward" aria-label="Sienna ink"></button>
-          <button class="controls__dot" data-style="amber" aria-label="Amber ink"></button>
-          <button class="controls__dot" data-style="blue" aria-label="Blue ink"></button>
-          <button class="controls__dot" data-style="neon" aria-label="Magenta ink"></button>
-          <button class="controls__dot" data-style="prism" aria-label="Indigo ink"></button>
-        </div>
-      </details>
-      <div class="controls__sep"></div>
-      <button class="controls__mode" aria-label="Toggle dark mode" aria-pressed="false">
-        <svg class="controls__mode-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path class="controls__icon-moon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          <g class="controls__icon-sun">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </g>
-        </svg>
-      </button>
-    </div>
     <Analytics />
-    <script is:inline>
-      (() => {
-        const html = document.documentElement;
-        const dots = document.querySelectorAll(".controls__dot");
-        const modeBtn = document.querySelector(".controls__mode");
-        const stylesWrap = document.querySelector(".controls__styles-wrap");
-
-        let activeStyle = html.getAttribute("data-style") || "ward";
-
-        const setActiveDot = (style) => {
-          dots.forEach((dot) =>
-            dot.classList.toggle("controls__dot--active", dot.dataset.style === style),
-          );
-        };
-        setActiveDot(activeStyle);
-
-        const syncSimStyle = (style) => {
-          window.__simPendingStyle = style;
-          if (window.__simSetChars) window.__simSetChars(style);
-        };
-        syncSimStyle(activeStyle);
-
-        dots.forEach((dot) => {
-          dot.addEventListener("click", () => {
-            activeStyle = dot.dataset.style;
-            html.setAttribute("data-style", activeStyle);
-            localStorage.setItem("site-style", activeStyle);
-            syncSimStyle(activeStyle);
-            setActiveDot(activeStyle);
-            if (stylesWrap) stylesWrap.open = false;
-          });
-        });
-
-        // Close the swatch popover on outside click.
-        document.addEventListener("click", (event) => {
-          if (!stylesWrap || !stylesWrap.open) return;
-          if (!stylesWrap.contains(event.target)) stylesWrap.open = false;
-        });
-
-        let mode = html.getAttribute("data-mode") === "dark" ? "dark" : "light";
-
-        const applyMode = (next, { syncSim = false } = {}) => {
-          mode = next;
-          html.setAttribute("data-mode", next);
-          modeBtn.setAttribute("aria-pressed", String(next === "dark"));
-
-          if (syncSim) {
-            if (window.__simSyncTheme) window.__simSyncTheme();
-            else syncSimStyle(activeStyle);
-          }
-        };
-
-        applyMode(mode);
-
-        modeBtn.addEventListener("click", () => {
-          const next = mode === "dark" ? "light" : "dark";
-          applyMode(next, { syncSim: true });
-          localStorage.setItem("sim-mode", next);
-        });
-      })();
-    </script>
   </body>
 </html>

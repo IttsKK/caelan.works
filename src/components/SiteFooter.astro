@@ -2,12 +2,41 @@
 import { siteMeta } from "../config/site";
 ---
 
-<footer class="site-footer">
-  <div class="frame site-footer__inner">
-    <p>&copy; {new Date().getFullYear()} {siteMeta.name}</p>
-    <p class="site-footer__meta">
-      {siteMeta.location && <span>{siteMeta.location} · </span>}
-      <a href={`mailto:${siteMeta.email}`}>{siteMeta.email}</a>
-    </p>
+<footer class="wrap footer" id="contact">
+  <ul class="footer__links">
+    <li><a href={`mailto:${siteMeta.email}`}>{siteMeta.email}</a></li>
+    {
+      siteMeta.links.map((link) => (
+        <li>
+          <a href={link.href} rel="me">{link.label}</a>
+        </li>
+      ))
+    }
+    {siteMeta.photography && (
+      <li>
+        <a href={siteMeta.photography}>Photography</a>
+      </li>
+    )}
+  </ul>
+  <div class="footer__end">
+    <button class="theme-toggle" type="button" data-theme-toggle>Light mode</button>
+    <p class="footer__legal">&copy; {new Date().getFullYear()} {siteMeta.name}</p>
   </div>
 </footer>
+
+<script is:inline>
+  (() => {
+    const button = document.querySelector("[data-theme-toggle]");
+    if (!button) return;
+    const html = document.documentElement;
+    const label = () => {
+      button.textContent = html.dataset.theme === "light" ? "Dark mode" : "Light mode";
+    };
+    label();
+    button.addEventListener("click", () => {
+      html.dataset.theme = html.dataset.theme === "light" ? "dark" : "light";
+      localStorage.setItem("theme", html.dataset.theme);
+      label();
+    });
+  })();
+</script>

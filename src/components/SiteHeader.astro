@@ -2,28 +2,18 @@
 import { siteMeta } from "../config/site";
 
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
-
-const isCurrent = (href: string) => {
-  if (href.startsWith("/#")) return false;
-  return path === href.replace(/\/$/, "");
-};
+const isCurrent = (href: string) => !href.includes("#") && path === href;
 ---
 
-<header class="masthead">
-  <div class="frame masthead__inner">
-    <a class="masthead__name" href="/">{siteMeta.name}</a>
-    <nav class="masthead__nav" aria-label="Primary">
-      {
-        siteMeta.nav.map((link) => (
-          <a
-            href={link.href}
-            class:list={["masthead__link", { "is-current": isCurrent(link.href) }]}
-            aria-current={isCurrent(link.href) ? "page" : undefined}
-          >
-            {link.label}
-          </a>
-        ))
-      }
-    </nav>
-  </div>
+<header class="header wrap">
+  <a class="header__name" href="/">{siteMeta.name}</a>
+  <nav class="header__nav" aria-label="Primary">
+    {
+      siteMeta.nav.map((link) => (
+        <a href={link.href} aria-current={isCurrent(link.href) ? "page" : undefined}>
+          {link.label}
+        </a>
+      ))
+    }
+  </nav>
 </header>

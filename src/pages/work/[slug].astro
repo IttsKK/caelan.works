@@ -1,0 +1,75 @@
+---
+import { Image } from "astro:assets";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { projects } from "../../data/projects";
+import { siteMeta } from "../../config/site";
+
+export function getStaticPaths() {
+  return projects.map((project, i) => ({
+    params: { slug: project.slug },
+    props: { project, next: projects[(i + 1) % projects.length] },
+  }));
+}
+
+const { project, next } = Astro.props;
+const labelled = project.pages.length > 1;
+---
+
+<BaseLayout title={`${project.title} — ${siteMeta.name}`} description={project.summary}>
+  <article class="wrap">
+    <header class="case">
+      <h1 class="case__title">{project.title}</h1>
+      <div class="case__body">
+        {project.description.map((paragraph) => <p>{paragraph}</p>)}
+      </div>
+      <dl class="case__facts">
+        <div><dt>Year</dt><dd>{project.year}</dd></div>
+        <div><dt>Role</dt><dd>{project.role}</dd></div>
+        <div><dt>Built with</dt><dd>{project.stack.join(", ")}</dd></div>
+        <div>
+          <dt>Status</dt>
+          <dd>
+            {project.href ? <a href={project.href}>{new URL(project.href).host}</a> : project.status}
+          </dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="case__view">
+      <div class="case__pages">
+        {
+          project.pages.map((page, i) => (
+            <figure>
+              {labelled && <figcaption>{page.label}</figcaption>}
+              <div class="shot">
+                <Image
+                  src={page.src}
+                  alt={page.alt}
+                  widths={[960, 1440, 1920]}
+                  sizes="(min-width: 1360px) 980px, (min-width: 760px) 75vw, 100vw"
+                  loading={i === 0 ? "eager" : "lazy"}
+                />
+              </div>
+            </figure>
+          ))
+        }
+      </div>
+      <div class="case__phone">
+        <figure>
+          {labelled && <figcaption>Phone</figcaption>}
+          <div class="shot">
+            <Image src={project.mobile.src} alt={project.mobile.alt} widths={[300, 600]} sizes="(min-width: 760px) 260px, 60vw" />
+          </div>
+        </figure>
+      </div>
+    </div>
+
+    {
+      next.slug !== project.slug && (
+        <a class="case__next" href={`/work/${next.slug}`}>
+          <span>Next</span> {next.title}
+        </a>
+      )
+    }
+  </article>
+</BaseLayout>
