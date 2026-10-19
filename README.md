@@ -70,6 +70,12 @@ on the board with a small label, and a filter next to the name (All · Digital
 that set, and the gallery only steps through it. The order of sets is
 `SET_ORDER` in `src/data/photos.ts`; names come from the folder, capitalised.
 
+In the gallery (with the board in its Loose arrangement), photos go set by
+set. Within a set, the newer edits with a plain border come first, then the
+older work, and within each of those every photo sits next to the ones closest
+to it in colour. Borders are spotted automatically at build time
+(`src/data/border.ts`), so a new bordered photo joins the others on its own.
+
 ## Adding and arranging photos
 
 Run `bun run dev` and open <http://localhost:4321/photography?edit>. The editor only
@@ -142,6 +148,11 @@ Everything moves in `src/scripts/board.ts`, with no animation library.
   light up and to the left, so ripples, clouds and grass catch the light
   differently. It's blended so a flat photo is left untouched. Without WebGL
   a plain CSS sheen stands in.
+- **Gallery stacks.** The photos either side of the front one are a stack:
+  their centres sit at fixed, even distances from the centre of the front
+  photo, whatever their shape. Each keeps its own size, so a landscape print
+  is bigger but takes no extra room, and the stacks never shift when the front
+  photo changes.
 - **Idle.** The frame loop stops once everything has settled, and a photo's
   style is only written when it actually changes. Rewriting unchanged
   transforms every frame makes browsers redraw photos at lower quality, which

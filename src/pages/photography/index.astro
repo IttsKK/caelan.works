@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { getImage } from "astro:assets";
 import { photos, photoSrc, setLabel, setOf, sets } from "../../data/photos";
 import { coolToWarm, readColour } from "../../data/colour";
+import { hasBorder } from "../../data/border";
 import { groupByColour } from "../../data/groups";
 import { siteMeta } from "../../config/site";
 
@@ -26,14 +27,17 @@ const prints = await Promise.all(
     // The gallery copy is capped: past this, a bigger file only costs bandwidth.
     const long = Math.max(src.width, src.height);
     const fullWidth = Math.round(src.width * Math.min(1, 2400 / long));
-    const [image, full, colour] = await Promise.all([
+    const path = join(process.cwd(), "src/assets/photos", photo.file);
+    const [image, full, colour, bordered] = await Promise.all([
       // `width` sets the fallback `src`; without it Astro makes one at full size.
       getImage({ src, width: Math.min(800, src.width), widths, format: "webp", quality: 82 }),
       // The gallery swaps this in once it has loaded, at the photo's full size.
       getImage({ src, width: fullWidth, format: "webp", quality: 90 }),
-      readColour(join(process.cwd(), "src/assets/photos", photo.file)),
+      readColour(path),
+      // The newer edits have a plain border; the gallery keeps them together.
+      hasBorder(path),
     ]);
-    return { ...photo, set: setOf(photo.file), image, full, colour, ratio: src.width / src.height };
+    return { ...photo, set: setOf(photo.file), image, full, colour, bordered, ratio: src.width / src.height };
   }),
 );
 
@@ -99,6 +103,7 @@ for (const set of sets) {
               data-surface={`/photography/surface/${print.file.replace(/\.[^.]+$/, "")}.webp`}
               data-file={print.file}
               data-set={print.set}
+              data-bordered={print.bordered ? "" : undefined}
               data-x={print.x}
               data-y={print.y}
               data-rot={print.rot}
