@@ -129,9 +129,7 @@ pulling it in).
 Everything moves in `src/scripts/board.ts`, with no animation library.
 
 - **Camera.** Dragging moves the camera's target and it follows on a quick
-  spring, with a little momentum after a flick. Zoom is a spring too. The
-  grain moves with the board but is never scaled, since resampling it at
-  every zoom level causes moiré.
+  spring, with a little momentum after a flick. Zoom is a spring too.
 - **Springs.** Each photo has springs for position, scale, rotation, tilt and
   opacity. Arrangements and the gallery are just different targets, so photos
   move between them with the same motion. Spring constants are at the top of
@@ -148,6 +146,15 @@ Everything moves in `src/scripts/board.ts`, with no animation library.
   light up and to the left, so ripples, clouds and grass catch the light
   differently. It's blended so a flat photo is left untouched. Without WebGL
   a plain CSS sheen stands in.
+- **Background.** Drawn by a small WebGL shader (`src/scripts/backdrop.ts`)
+  rather than an image tile, so zooming never resamples it into bands or
+  interference patterns: grain is fixed to the screen, and anything on the
+  board fades out its finest detail before it gets smaller than a pixel or
+  two. The board uses `dots`: a dot grid that thins out as you zoom away.
+  Other styles are `grain`, `paper`, `cork` and `plain`; add `?bg` to the
+  address (e.g. `/photography?bg`) for a picker to try them, and change
+  `DEFAULT_STYLE` in that file to switch. Without WebGL a CSS dot grid stands
+  in.
 - **Gallery stacks.** The photos either side of the front one are a stack:
   their centres sit at fixed, even distances from the centre of the front
   photo, whatever their shape. Each keeps its own size, so a landscape print

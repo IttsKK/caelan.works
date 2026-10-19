@@ -21,6 +21,7 @@
  * board. Scaling down stays sharp; scaling a small element up does not.
  */
 
+import { createBackdrop, DEFAULT_STYLE, STYLES, type BackdropStyle } from "./backdrop";
 import { createGlint } from "./glint";
 
 type Mode = "board" | "gallery";
@@ -215,6 +216,35 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   const grabSprings = [grab.rx, grab.ry, grab.lift];
   /** Texture-aware light on the front photo; null without WebGL (the CSS sheen is used instead). */
   const glint = reduced ? null : createGlint();
+  /** The background (see `backdrop.ts`); null without WebGL, when the CSS grain stands in. */
+  const params = new URLSearchParams(location.search);
+  const asked = params.get("bg") ?? "";
+  const backdrop = createBackdrop(
+    board,
+    (STYLES as readonly string[]).includes(asked) ? (asked as BackdropStyle) : DEFAULT_STYLE,
+    getComputedStyle(board).backgroundColor,
+  );
+  // `?bg` in the address shows a picker for trying the background styles.
+  if (backdrop && params.has("bg")) {
+    const picker = document.createElement("div");
+    picker.className = "bg-picker";
+    picker.setAttribute("role", "group");
+    picker.setAttribute("aria-label", "Background style");
+    picker.innerHTML = STYLES.map(
+      (name) => `<button type="button" data-bg="${name}" aria-pressed="${name === backdrop.style}">${name}</button>`,
+    ).join("");
+    picker.addEventListener("click", (event) => {
+      const name = (event.target as HTMLElement).closest<HTMLElement>("[data-bg]")?.dataset.bg as BackdropStyle | undefined;
+      if (!name) return;
+      backdrop.setStyle(name);
+      picker.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.bg === name)));
+      const url = new URL(location.href);
+      url.searchParams.set("bg", name);
+      history.replaceState(null, "", url);
+      kick();
+    });
+    document.body.append(picker);
+  }
   const strip = document.querySelector<HTMLElement>("[data-strip]")!;
   const stripTrack = document.querySelector<HTMLElement>("[data-strip-track]")!;
   let zoomMin = 0.4;
@@ -1331,7 +1361,12 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
     // The grain moves with the board but keeps its size: resampling it at
     // every zoom level causes moiré. Whole pixels keep it crisp.
-    board.style.backgroundPosition = `${Math.round(vw / 2 - cam.x.value * z)}px ${Math.round(vh / 2 - cam.y.value * z)}px`;
+    if (backdrop) backdrop.draw(cam.x.value, cam.y.value, z);
+    else {
+      // The CSS dot grid moves and scales with the board.
+      board.style.backgroundPosition = `${vw / 2 - cam.x.value * z}px ${vh / 2 - cam.y.value * z}px`;
+      board.style.backgroundSize = `${28 * z}px ${28 * z}px`;
+    }
 
     // Set labels sit above the top-left corner of each set's area, in the
     // loose arrangement with every set shown.
