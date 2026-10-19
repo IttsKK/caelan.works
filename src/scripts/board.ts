@@ -958,28 +958,42 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
   const labelFor = (print: Print | null) => {
     if (mode === "board") return print ? (editing ? "Move" : "Open") : "";
-    if (!print) return "";
-    const d = sequence.indexOf(print) - active;
-    return d < 0 ? "Prev" : d > 0 ? "Next" : gallerySide(pointer.x) < 0 ? "Prev" : "Next";
+    return zoneLabel(galleryZone(pointer.x, pointer.y));
   };
 
   // ── Gallery clicks ──
 
   /**
-   * Which way a click at `x` moves the gallery: anywhere left of the front
-   * photo's centre goes back one, anywhere right goes on one, so the number
-   * of clicks is the number of photos you go through. Closing is the ×
-   * button (or Escape), so no part of the screen is a trap.
+   * What a click at a point does in the gallery. The front photo is held
+   * and tilted (0). Beside it, in the band the photos fill, the left side
+   * goes back one and the right side on one, so the number of clicks is the
+   * number of photos you go through. Above and below the photos closes it.
    */
-  const gallerySide = (x: number): -1 | 1 => {
+  const galleryZone = (x: number, y: number): -1 | 0 | 1 | "close" => {
     // Measured from where the front photo is settling, not where it is
     // mid-animation, so quick clicks still count from the right place.
     const front = sequence[active];
     const cx = front.x.target - cam.x.target + vw / 2;
-    return x < cx ? -1 : 1;
+    const cy = front.y.target - cam.y.target + vh / 2;
+    const half = (print: Print | undefined) => (print ? (print.h * print.scale.target) / 2 : 0);
+    if (Math.abs(x - cx) <= (front.w * front.scale.target) / 2) {
+      return Math.abs(y - cy) <= half(front) ? 0 : "close";
+    }
+    // Beside it, the band is as tall as the front photo or the photo next
+    // to it on that side, whichever is taller.
+    const side = x < cx ? -1 : 1;
+    const band = Math.max(half(front), half(sequence[active + side]));
+    return Math.abs(y - cy) <= band + 10 ? side : "close";
   };
 
-  const galleryClick = (x: number) => go(gallerySide(x));
+  const zoneLabel = (zone: ReturnType<typeof galleryZone>) =>
+    zone === "close" ? "Close" : zone === 0 ? "Grab" : zone < 0 ? "Prev" : "Next";
+
+  const galleryClick = (x: number, y: number) => {
+    const zone = galleryZone(x, y);
+    if (zone === "close") closeGallery();
+    else if (zone !== 0) go(zone);
+  };
 
   // ── Grab and tilt ──
 
@@ -997,8 +1011,6 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   };
 
   const releaseGrab = (instant = false) => {
-    clearTimeout(holdTimer);
-    pendingGrab = null;
     // The click that follows letting go of a tilt shouldn't move the gallery.
     if (grab.held && !instant) draggedAt = performance.now();
     grab.held = null;
@@ -1009,17 +1021,14 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     kick();
   };
 
-  /** How long a finger has to stay still on the front photo to tilt it. */
-  const HOLD_MS = 320;
-  let holdTimer = 0;
-  /** A press on the front photo that might become a tilt. */
-  let pendingGrab: { id: number; x: number; y: number; touch: boolean } | null = null;
+  /** Where a hold started and how fast it's moving sideways, to tell a tilt from a swipe. */
+  let held = { x: 0, y: 0, t: 0, lastX: 0, lastT: 0, vx: 0 };
 
   const startGrab = (print: Print, id: number, x: number, y: number) => {
-    pendingGrab = null;
-    clearTimeout(holdTimer);
     grab.held = { id };
     grab.lift.target = 1.012;
+    const now = performance.now();
+    held = { x, y, t: now, lastX: x, lastT: now, vx: 0 };
     try {
       print.el.setPointerCapture(id);
     } catch {
@@ -1028,6 +1037,19 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     board.classList.add("is-dragging");
     setCursorLabel("");
     aimGrab(x, y);
+  };
+
+  /**
+   * Whether letting go at `x`, `y` ends a swipe rather than a tilt: mostly
+   * sideways, far enough, and quick, or still moving fast when let go.
+   * Slowly tilting the photo around never counts.
+   */
+  const swipeOf = (x: number, y: number): -1 | 0 | 1 => {
+    const dx = x - held.x;
+    const dy = y - held.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return 0;
+    const quick = performance.now() - held.t < 450 || Math.abs(held.vx) > 0.35;
+    return quick ? (dx < 0 ? 1 : -1) : 0;
   };
 
   const setHovered = (print: Print | null) => {
@@ -1178,46 +1200,32 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   window.addEventListener("pointercancel", endPointer);
 
   for (const print of prints) {
-    // The front photo tilts when it's held. With a mouse, pressing and
-    // moving tilts it; with a finger, a swipe moves through the gallery, so
-    // tilting waits for a press and hold.
+    // Pressing the front photo picks it up and tilts it at once; swiping
+    // sideways while holding it moves through the gallery instead.
     print.el.addEventListener("pointerdown", (event) => {
       if (mode !== "gallery" || event.button !== 0 || print !== sequence[active]) return;
-      const touch = event.pointerType !== "mouse";
-      pendingGrab = { id: event.pointerId, x: event.clientX, y: event.clientY, touch };
-      if (!touch) {
-        // The board's drag would swipe; with a mouse, dragging the photo tilts.
-        event.stopPropagation();
-        print.el.setPointerCapture(event.pointerId);
-        return;
-      }
-      clearTimeout(holdTimer);
-      holdTimer = window.setTimeout(() => {
-        // Held still: tilt instead of swipe.
-        if (!pendingGrab || pendingGrab.id !== event.pointerId || drag?.moved || touches.size > 1) return;
-        drag = null;
-        startGrab(print, event.pointerId, pointer.x, pointer.y);
-      }, HOLD_MS);
+      // The board's own drag would swipe too.
+      event.stopPropagation();
+      startGrab(print, event.pointerId, event.clientX, event.clientY);
     });
     print.el.addEventListener("pointermove", (event) => {
-      if (grab.held?.id === event.pointerId) return aimGrab(event.clientX, event.clientY);
-      // A mouse that has moved past a few px is tilting, not clicking.
-      if (pendingGrab?.id === event.pointerId && !pendingGrab.touch) {
-        if (Math.hypot(event.clientX - pendingGrab.x, event.clientY - pendingGrab.y) > 4) {
-          startGrab(print, event.pointerId, event.clientX, event.clientY);
-        }
-      }
+      if (grab.held?.id !== event.pointerId) return;
+      const now = performance.now();
+      const dt = Math.max(1, now - held.lastT);
+      held.vx = held.vx * 0.5 + ((event.clientX - held.lastX) / dt) * 0.5;
+      held.lastX = event.clientX;
+      held.lastT = now;
+      aimGrab(event.clientX, event.clientY);
     });
     // A long press shouldn't bring up the system menu for the image.
     print.el.addEventListener("contextmenu", (event) => {
       if (mode === "gallery") event.preventDefault();
     });
     const letGo = (event: PointerEvent) => {
-      if (grab.held?.id === event.pointerId) releaseGrab();
-      else if (pendingGrab?.id === event.pointerId) {
-        clearTimeout(holdTimer);
-        pendingGrab = null;
-      }
+      if (grab.held?.id !== event.pointerId) return;
+      const step = event.type === "pointerup" ? swipeOf(event.clientX, event.clientY) : 0;
+      releaseGrab();
+      if (step) go(step);
     };
     print.el.addEventListener("pointerup", letGo);
     print.el.addEventListener("pointercancel", letGo);
@@ -1233,7 +1241,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       event.stopPropagation();
       if (wasDrag() || editing) return;
       if (mode === "board") return openGallery(print);
-      galleryClick(event.clientX);
+      galleryClick(event.clientX, event.clientY);
     });
     // Keyboard users: bring a focused photo into view.
     print.el.addEventListener("focus", () => {
@@ -1246,17 +1254,17 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   }
 
   board.addEventListener("click", (event) => {
-    if (!wasDrag() && mode === "gallery") galleryClick(event.clientX);
+    if (!wasDrag() && mode === "gallery") galleryClick(event.clientX, event.clientY);
   });
   // Over the bars at the top and bottom, the gallery's labels don't apply.
   board.addEventListener("pointerleave", () => {
     if (mode === "gallery" && !grab.held) setCursorLabel("");
   });
-  // In the gallery, the cursor label follows which side of the front photo
-  // it's on rather than whichever photo happens to be under it.
+  // In the gallery, the cursor label follows the click zones rather than
+  // whichever photo happens to be under it.
   board.addEventListener("pointermove", (event) => {
     if (mode !== "gallery" || grab.held) return;
-    setCursorLabel(gallerySide(event.clientX) < 0 ? "Prev" : "Next");
+    setCursorLabel(zoneLabel(galleryZone(event.clientX, event.clientY)));
   });
 
   document.querySelector("[data-prev]")?.addEventListener("click", () => go(-1));
