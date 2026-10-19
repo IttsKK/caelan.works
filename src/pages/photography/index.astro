@@ -1,0 +1,164 @@
+---
+import "@fontsource-variable/archivo/wdth.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "../../styles/board.css";
+import Analytics from "@vercel/analytics/astro";
+import { join } from "node:path";
+import { getImage } from "astro:assets";
+import { photos, photoSrc, setLabel, setOf, sets } from "../../data/photos";
+import { coolToWarm, readColour } from "../../data/colour";
+import { groupByColour } from "../../data/groups";
+import { siteMeta } from "../../config/site";
+
+const site = {
+  name: siteMeta.name,
+  title: "Photography",
+  email: siteMeta.email,
+};
+
+// Every photo gets a small set of widths for the board, plus a full-size copy
+// for the gallery.
+const prints = await Promise.all(
+  photos.map(async (photo) => {
+    const src = photoSrc(photo.file);
+    const widths = [400, 800, 1200].filter((w) => w <= src.width);
+    if (src.width < 1200 && !widths.includes(src.width)) widths.push(src.width);
+    // The gallery copy is capped: past this, a bigger file only costs bandwidth.
+    const long = Math.max(src.width, src.height);
+    const fullWidth = Math.round(src.width * Math.min(1, 2400 / long));
+    const [image, full, colour] = await Promise.all([
+      // `width` sets the fallback `src`; without it Astro makes one at full size.
+      getImage({ src, width: Math.min(800, src.width), widths, format: "webp", quality: 82 }),
+      // The gallery swaps this in once it has loaded, at the photo's full size.
+      getImage({ src, width: fullWidth, format: "webp", quality: 90 }),
+      readColour(join(process.cwd(), "src/assets/photos", photo.file)),
+    ]);
+    return { ...photo, set: setOf(photo.file), image, full, colour, ratio: src.width / src.height };
+  }),
+);
+
+// Within each set, similar colours are grouped; each group's place in the
+// set's area comes from its colour (cool to warm across, light to dark down).
+const placements = new Array<ReturnType<typeof groupByColour>[number]>(prints.length);
+for (const set of sets) {
+  const members = prints.map((print, i) => ({ print, i })).filter(({ print }) => print.set === set);
+  groupByColour(members.map(({ print }) => print.colour)).forEach((placement, k) => {
+    placements[members[k].i] = placement;
+  });
+}
+
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>{site.title} — {site.name}</title>
+    <meta name="description" content={`Photographs by ${site.name}.`} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site ?? Astro.url).href} />
+  </head>
+  <body>
+    <header class="chrome chrome--top">
+      <div class="masthead">
+        <a class="brand" href="/">{site.name}</a>
+        {
+          sets.length > 1 && (
+            <nav class="sets" aria-label="Sets">
+              <button type="button" data-set-filter="" aria-pressed="true">All</button>
+              {sets.map((set) => (
+                <button type="button" data-set-filter={set} aria-pressed="false">
+                  {setLabel(set)}
+                </button>
+              ))}
+            </nav>
+          )
+        }
+      </div>
+      <a href={`mailto:${site.email}`}>Contact</a>
+    </header>
+
+    <main class="board" data-board data-mode="board">
+      <div class="world" data-world>
+        {
+          prints.map((print, i) => (
+            <button
+              class="print"
+              type="button"
+              data-print
+              data-ratio={print.ratio}
+              data-warmth={coolToWarm(print.colour.hue).toFixed(1)}
+              data-light={print.colour.light.toFixed(3)}
+              data-group={placements[i].group}
+              data-order={placements[i].order}
+              data-gx={placements[i].gx.toFixed(3)}
+              data-gy={placements[i].gy.toFixed(3)}
+              data-full={print.full.src}
+              data-surface={`/photography/surface/${print.file.replace(/\.[^.]+$/, "")}.webp`}
+              data-file={print.file}
+              data-set={print.set}
+              data-x={print.x}
+              data-y={print.y}
+              data-rot={print.rot}
+              data-z={print.z}
+              aria-label={`Open photo ${i + 1}`}
+            >
+              <img
+                src={print.image.src}
+                srcset={print.image.srcSet.attribute}
+                sizes="260px"
+                alt=""
+                draggable="false"
+                decoding="async"
+              />
+            </button>
+          ))
+        }
+      </div>
+      <div class="axis" data-axis aria-hidden="true"><span></span><span></span></div>
+      {sets.length > 1 && sets.map((set) => <p class="set-label" data-set-label={set} aria-hidden="true">{setLabel(set)}</p>)}
+    </main>
+
+    <footer class="chrome chrome--bottom">
+      <div class="bar" data-board-controls>
+        <div class="zoom" role="group" aria-label="Zoom">
+          <button type="button" data-zoom-out aria-label="Zoom out">−</button>
+          <span data-zoom-level>100%</span>
+          <button type="button" data-zoom-in aria-label="Zoom in">+</button>
+        </div>
+        <div class="arrange" role="group" aria-label="Arrange photos">
+          <button type="button" data-arrange="loose" aria-pressed="true">Loose</button>
+          <button type="button" data-arrange="colour" aria-pressed="false">Colour</button>
+          <button type="button" data-arrange="light" aria-pressed="false">Light</button>
+        </div>
+      </div>
+      <div class="bar" data-gallery-nav hidden>
+        <p data-caption></p>
+        <div class="dial" data-strip role="slider" aria-label="Position in the photos"><div data-strip-track></div></div>
+        <div class="gallery-nav">
+          <button type="button" data-prev>Prev</button>
+          <button type="button" data-next>Next</button>
+          <button type="button" data-close>Close</button>
+        </div>
+      </div>
+    </footer>
+
+    <div class="cursor" data-cursor aria-hidden="true">
+      <span class="cursor__cross"></span>
+      <span class="cursor__label" data-cursor-label></span>
+    </div>
+
+    <script>
+      import { startBoard } from "../../scripts/board";
+
+      // The layout editor (`/?edit`) only exists in `bun run dev`; it isn't in
+      // the built site at all.
+      const editing = import.meta.env.DEV && new URLSearchParams(location.search).has("edit");
+      const board = startBoard({ editing });
+      if (editing) import("../../scripts/editor").then(({ startEditor }) => startEditor(board));
+    </script>
+    <Analytics />
+  </body>
+</html>

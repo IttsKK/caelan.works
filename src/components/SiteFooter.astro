@@ -2,37 +2,36 @@
 import { siteMeta } from "../config/site";
 ---
 
-<footer class="site-footer" id="contact">
-  <div class="frame site-footer__inner">
-    <div class="site-footer__col">
-      <h2 class="site-footer__heading">Get in touch</h2>
-      <a class="site-footer__email" href={`mailto:${siteMeta.email}`}>
-        {siteMeta.email}
-      </a>
-    </div>
-    <div class="site-footer__col">
-      <h2 class="site-footer__heading">Elsewhere</h2>
-      <ul class="site-footer__links">
-        {siteMeta.links.map((link) => (
-          <li>
-            <a href={link.href} target="_blank" rel="noreferrer">
-              <span>{link.label}</span>
-              <span class="site-footer__link-icon" aria-hidden="true">
-                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 9L9 3" />
-                  <path d="M4 3H9V8" />
-                </svg>
-              </span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-    <div class="site-footer__col site-footer__col--wide">
-      <p class="site-footer__note">{siteMeta.intro}</p>
-    </div>
-  </div>
-  <div class="frame site-footer__bottom">
-    <p>&copy; {new Date().getFullYear()} {siteMeta.name}</p>
+<footer class="wrap footer" id="contact">
+  <ul class="footer__links">
+    <li><a href={`mailto:${siteMeta.email}`}>{siteMeta.email}</a></li>
+    {
+      siteMeta.links.map((link) => (
+        <li>
+          <a href={link.href} rel="me">{link.label}</a>
+        </li>
+      ))
+    }
+  </ul>
+  <div class="footer__end">
+    <button class="theme-toggle" type="button" data-theme-toggle>Light mode</button>
+    <p class="footer__legal">&copy; {new Date().getFullYear()} {siteMeta.name}</p>
   </div>
 </footer>
+
+<script is:inline>
+  (() => {
+    const button = document.querySelector("[data-theme-toggle]");
+    if (!button) return;
+    const html = document.documentElement;
+    const label = () => {
+      button.textContent = html.dataset.theme === "light" ? "Dark mode" : "Light mode";
+    };
+    label();
+    button.addEventListener("click", () => {
+      html.dataset.theme = html.dataset.theme === "light" ? "dark" : "light";
+      localStorage.setItem("theme", html.dataset.theme);
+      label();
+    });
+  })();
+</script>

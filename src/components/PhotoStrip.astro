@@ -1,0 +1,35 @@
+---
+import { Image } from "astro:assets";
+import { photoSrc } from "../data/photos";
+
+interface Props {
+  /** Paths inside `src/assets/photos/`, e.g. "film/0001.jpg". */
+  files: string[];
+}
+
+const { files } = Astro.props;
+const items = files.map((file) => {
+  const src = photoSrc(file);
+  return { file, src, ratio: src.width / src.height };
+});
+---
+
+{/* Every photo gets a share of the row proportional to its shape, so they all come out the same height and none is cropped. */}
+<ul class="strip">
+  {
+    items.map(({ file, src, ratio }) => (
+      <li class="strip__item" style={`--r: ${ratio.toFixed(3)}`}>
+        <a class="shot" href="/photography" tabindex="-1" aria-hidden="true">
+          <Image
+            src={src}
+            alt=""
+            widths={[320, 480, 720, 960]}
+            sizes="(min-width: 760px) 18vw, 45vw"
+            loading="lazy"
+            data-file={file}
+          />
+        </a>
+      </li>
+    ))
+  }
+</ul>
