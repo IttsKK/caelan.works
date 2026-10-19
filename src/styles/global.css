@@ -261,6 +261,13 @@ a:hover {
   opacity: 1;
 }
 
+/* Without a mouse there's nothing for it to trail. */
+@media not ((hover: hover) and (pointer: fine)) {
+  .hero__preview {
+    display: none;
+  }
+}
+
 .hero__preview img {
   display: none;
   width: 100%;
@@ -537,7 +544,26 @@ a:hover {
   .header__nav {
     gap: 1rem;
   }
+}
 
+/* The name and four links don't fit on one line on a phone: the links go on
+   a row of their own. The name stays where it sits on the photography page. */
+@media (max-width: 520px) {
+  .header {
+    flex-wrap: wrap;
+    align-content: start;
+    height: auto;
+    padding-top: 1.5rem;
+    row-gap: 0.5rem;
+  }
+
+  .header__nav {
+    width: 100%;
+    gap: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
   .hero {
     min-height: calc(90svh - 4.5rem);
     padding-block: 3rem 2.5rem;

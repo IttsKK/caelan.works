@@ -184,6 +184,37 @@ a:hover {
   visibility: hidden;
 }
 
+/* In the gallery, the × takes Contact's place. */
+.chrome:has(~ [data-mode="gallery"]) .contact {
+  display: none;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.close[hidden] {
+  display: none;
+}
+
+.close svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
 /* The spectrum's axis: a hairline with its two ends labelled. Placed in
    screen px by the script. */
 .axis {
@@ -245,6 +276,8 @@ a:hover {
   transform-origin: 50% 50%;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
   transition: box-shadow 300ms ease;
+  /* Holding a photo tilts it; no system menu or selection. */
+  -webkit-touch-callout: none;
 }
 
 .print.is-lifted {
@@ -332,6 +365,35 @@ a:hover {
 
   .sets {
     gap: 11px;
+  }
+
+  /* On a phone, tapping either side or swiping moves through the gallery. */
+  .bar .gallery-nav {
+    display: none;
+  }
+}
+
+/* Like the site's header on a phone: the sets go under the name, which
+   stays in the same place as on the other pages. */
+@media (max-width: 520px) {
+  .chrome--top {
+    align-items: flex-start;
+    height: auto;
+    padding-top: 1.5rem;
+  }
+
+  .masthead {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Same line height as the name, so the two line up. */
+  .contact {
+    line-height: 24px;
+  }
+
+  .close {
+    margin-top: -10px;
   }
 }
 
