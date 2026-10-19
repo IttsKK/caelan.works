@@ -292,8 +292,10 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     base = clamp(Math.min(vw, vh) * 0.2, 110, 210);
     const small = vw < 700;
     for (const print of prints) {
-      // The size the photo has at the front of the gallery.
-      const h = Math.min(vh * (small ? 0.62 : 0.76), (vw * (small ? 0.8 : 0.7)) / print.ratio);
+      // The size the photo has at the front of the gallery. On wide screens a
+      // landscape photo is held to about half the width, so the stacks
+      // either side of it still have room.
+      const h = Math.min(vh * (small ? 0.62 : 0.76), (vw * (small ? 0.8 : 0.52)) / print.ratio);
       print.h = h;
       print.w = h * print.ratio;
       print.boardScale = boardW(print) / print.w;
@@ -786,19 +788,24 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     const small = vw < 700;
     const sideScale = small ? 0.55 : 0.66;
     const gap = small ? 6 : 12;
-    // The side photos are a stack: their centres sit at fixed, even distances
-    // from the centre of the front photo, whatever their shape or the front
-    // photo's. Each photo keeps its own size, so a landscape print is bigger
-    // than a portrait one but takes no more room; it just overlaps more.
-    const portraitW = Math.min(vh * (small ? 0.62 : 0.76), (vw * (small ? 0.8 : 0.7)) / 0.75) * 0.75;
-    const firstCentre = portraitW / 2 + gap + portraitW * sideScale * 0.42;
-    const step = portraitW * sideScale * 0.2;
+    // The side photos are a stack starting just past the front photo's edge,
+    // so a landscape photo in front pushes them out rather than covering
+    // them. The first on each side is spaced by its own width, so it shows
+    // whole whatever its shape; the rest follow at even steps, closer
+    // together when a wide front photo leaves less room.
+    const portraitW = Math.min(vh * (small ? 0.62 : 0.76), (vw * (small ? 0.8 : 0.52)) / 0.75) * 0.75;
+    const front = sequence[active];
+    const edge = front.w / 2 + gap;
+    const firstCentre = (side: number) => edge + (sequence[active + side]?.w ?? portraitW) * sideScale * 0.42;
+    const fullStep = portraitW * sideScale * 0.2;
+    const portraitEdge = portraitW / 2 + gap + portraitW * sideScale * 0.42;
+    const step = clamp(fullStep - (firstCentre(1) + firstCentre(-1) - portraitEdge * 2) / 8, fullStep * 0.4, fullStep);
 
     sequence.forEach((print, i) => {
       const d = i - active;
       const far = Math.abs(d);
       const side = Math.sign(d);
-      const offset = d === 0 ? 0 : firstCentre + (far - 1) * step;
+      const offset = d === 0 ? 0 : firstCentre(side) + (far - 1) * step;
 
       print.x.target = cam.x.target + side * offset;
       print.y.target = cam.y.target - vh * 0.01;
