@@ -55,6 +55,10 @@ class Spring {
 export interface Print {
   el: HTMLButtonElement;
   file: string;
+  /** One of the newer edits, with a plain border (see `src/data/border.ts`). */
+  bordered: boolean;
+  /** Place in its group's colour chain: neighbours look alike. */
+  chain: number;
   /** The folder it's in: its set. */
   set: string;
   /** Where photos.json puts it, in photo widths; missing for unplaced photos. */
@@ -138,6 +142,8 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   const prints: Print[] = [...document.querySelectorAll<HTMLButtonElement>("[data-print]")].map((el) => ({
     el,
     file: el.dataset.file ?? "",
+    bordered: el.dataset.bordered !== undefined,
+    chain: 0,
     set: el.dataset.set ?? "photos",
     saved: { x: num(el.dataset.x), y: num(el.dataset.y), rot: num(el.dataset.rot), z: num(el.dataset.z) },
     img: el.querySelector("img")!,
@@ -397,9 +403,41 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     orderSequence();
   };
 
-  /** In the loose arrangement the gallery reads the board left to right, set by set. */
+  /**
+   * In the loose arrangement the gallery goes set by set. Within a set, the
+   * newer bordered edits come first and the older work after, and within each
+   * of those, every photo sits next to the ones it looks most like.
+   */
   const orderSequence = () => {
-    sequence = visible().sort((a, b) => setNames.indexOf(a.set) - setNames.indexOf(b.set) || a.home.x - b.home.x);
+    sequence = visible().sort(
+      (a, b) =>
+        setNames.indexOf(a.set) - setNames.indexOf(b.set) ||
+        Number(b.bordered) - Number(a.bordered) ||
+        a.chain - b.chain,
+    );
+  };
+
+  /**
+   * Chain each group of photos by colour: start from the coolest, then keep
+   * stepping to the closest one not yet used. Neighbours in the chain look
+   * alike, so the gallery flows instead of jumping between colours.
+   */
+  const chainByColour = () => {
+    const groups = new Map<string, Print[]>();
+    for (const print of prints) {
+      const key = `${print.set}|${print.bordered}`;
+      groups.set(key, [...(groups.get(key) ?? []), print]);
+    }
+    for (const group of groups.values()) {
+      const left = [...group].sort((a, b) => a.warmth - b.warmth);
+      let at = left.shift()!;
+      at.chain = 0;
+      for (let i = 1; left.length; i++) {
+        left.sort((a, b) => colourDistance(at, a) - colourDistance(at, b));
+        at = left.shift()!;
+        at.chain = i;
+      }
+    }
   };
 
   /**
@@ -556,17 +594,22 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     // Gallery, at zoom 1 so world px are screen px: the active photo at full
     // size in the middle, the next few close on either side and turned with
     // their outer edges toward you.
-    const current = sequence[active];
     const small = vw < 700;
     const sideScale = small ? 0.55 : 0.66;
     const gap = small ? 6 : 12;
+    // The side photos are a stack: their centres sit at fixed, even distances
+    // from the centre of the front photo, whatever their shape or the front
+    // photo's. Each photo keeps its own size, so a landscape print is bigger
+    // than a portrait one but takes no more room; it just overlaps more.
+    const portraitW = Math.min(vh * (small ? 0.62 : 0.76), (vw * (small ? 0.8 : 0.7)) / 0.75) * 0.75;
+    const firstCentre = portraitW / 2 + gap + portraitW * sideScale * 0.42;
+    const step = portraitW * sideScale * 0.2;
 
     sequence.forEach((print, i) => {
       const d = i - active;
       const far = Math.abs(d);
       const side = Math.sign(d);
-      const sideW = print.w * sideScale;
-      const offset = d === 0 ? 0 : current.w / 2 + gap + sideW * 0.42 + (far - 1) * sideW * 0.2;
+      const offset = d === 0 ? 0 : firstCentre + (far - 1) * step;
 
       print.x.target = cam.x.target + side * offset;
       print.y.target = cam.y.target - vh * 0.01;
@@ -1336,6 +1379,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   // ── Start ──
 
   size();
+  chainByColour();
   arrange(false);
   // Open on the first set rather than the middle of the whole board, which
   // can fall in the gap between sets.
