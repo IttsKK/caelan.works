@@ -37,7 +37,7 @@ const prints = await Promise.all(
       // The newer edits have a plain border; the gallery keeps them together.
       hasBorder(path),
     ]);
-    return { ...photo, set: setOf(photo.file), image, full, colour, bordered, ratio: src.width / src.height };
+    return { ...photo, set: setOf(photo.file), image, full, fullWidth, colour, bordered, ratio: src.width / src.height };
   }),
 );
 
@@ -81,7 +81,10 @@ for (const set of sets) {
           )
         }
       </div>
-      <a href={`mailto:${site.email}`}>Contact</a>
+      <a class="contact" href={`mailto:${site.email}`}>Contact</a>
+      <button type="button" class="close" data-close aria-label="Close" hidden>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16" /></svg>
+      </button>
     </header>
 
     <main class="board" data-board data-mode="board">
@@ -100,6 +103,7 @@ for (const set of sets) {
               data-gx={placements[i].gx.toFixed(3)}
               data-gy={placements[i].gy.toFixed(3)}
               data-full={print.full.src}
+              data-full-w={print.fullWidth}
               data-surface={`/photography/surface/${print.file.replace(/\.[^.]+$/, "")}.webp`}
               data-file={print.file}
               data-set={print.set}
@@ -145,7 +149,6 @@ for (const set of sets) {
         <div class="gallery-nav">
           <button type="button" data-prev>Prev</button>
           <button type="button" data-next>Next</button>
-          <button type="button" data-close>Close</button>
         </div>
       </div>
     </footer>

@@ -136,6 +136,9 @@ export interface Backdrop {
 }
 
 /** Put the background canvas into the board; null if WebGL isn't available. */
+/** Phones get fewer pixels: the texture is soft anyway, and it saves memory. */
+const maxRatio = matchMedia("(pointer: coarse)").matches ? 1.5 : 2;
+
 export function createBackdrop(board: HTMLElement, style: BackdropStyle, colour: string): Backdrop | null {
   const canvas = document.createElement("canvas");
   canvas.className = "backdrop";
@@ -190,7 +193,7 @@ export function createBackdrop(board: HTMLElement, style: BackdropStyle, colour:
       drawn = "";
     },
     draw(camX, camY, zoom) {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, maxRatio);
       const w = Math.round(window.innerWidth * dpr);
       const h = Math.round(window.innerHeight * dpr);
       // Only redraw when something changed (whole device pixels of movement).

@@ -72,16 +72,20 @@ export interface Print {
   order: number;
   gx: number;
   gy: number;
-  /** Full-size image, swapped in once it has loaded. */
-  full: string;
+  /** Every size of the image there is, smallest first, up to the full one. */
+  sources: { w: number; url: string }[];
+  /** The image source it's showing, or on its way to showing. */
+  src: string;
   /** Surface map for the glint (see `src/data/surface.ts`). */
   surface: string;
-  /** A small image for the filmstrip. */
-  thumb: string;
-  fullState: "none" | "loading" | "done";
-  /** Layout size (the gallery size), in px. */
+  /** Its size at the front of the gallery, in px. All the motion is worked out
+   * in these terms, whatever size the element itself is laid out at. */
   w: number;
   h: number;
+  /** The size the element is actually laid out at: small on the board, the
+   * full gallery size only while it's shown big. Big layers cost memory. */
+  lw: number;
+  lh: number;
   /** Scale that makes it board-sized. */
   boardScale: number;
   /** Resting place for the current arrangement, in world px. */
@@ -96,7 +100,7 @@ export interface Print {
   delay: number;
   z: number;
   /** What was last written to the element's style, to skip unchanged writes. */
-  drawn: { transform: string; opacity: string; zIndex: string; events: string; sheen: string };
+  drawn: { transform: string; opacity: string; zIndex: string; events: string; sheen: string; visible: boolean };
 }
 
 // Photos: quick and only just underdamped, so they land with a hint of settle.
@@ -133,6 +137,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   const caption = document.querySelector<HTMLElement>("[data-caption]")!;
   const galleryBar = document.querySelector<HTMLElement>("[data-gallery-nav]")!;
   const boardBar = document.querySelector<HTMLElement>("[data-board-controls]")!;
+  const closeButton = document.querySelector<HTMLButtonElement>("[data-close]")!;
   const zoomLevel = document.querySelector<HTMLElement>("[data-zoom-level]")!;
   const arrangeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-arrange]")];
 
@@ -155,12 +160,21 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     order: Number(el.dataset.order) || 0,
     gx: Number(el.dataset.gx) || 0.5,
     gy: Number(el.dataset.gy) || 0.5,
-    full: el.dataset.full ?? "",
+    sources: [
+      ...el.querySelector("img")!.srcset.split(",").map((part) => {
+        const [url, w] = part.trim().split(/\s+/);
+        return { url, w: parseInt(w, 10) || 0 };
+      }),
+      { url: el.dataset.full ?? "", w: Number(el.dataset.fullW) || 0 },
+    ]
+      .filter((source) => source.url && source.w)
+      .sort((a, b) => a.w - b.w),
+    src: "",
     surface: el.dataset.surface ?? "",
-    thumb: el.querySelector("img")!.srcset.split(",")[0]?.trim().split(" ")[0] || el.querySelector("img")!.src,
-    fullState: "none",
     w: 0,
     h: 0,
+    lw: 0,
+    lh: 0,
     boardScale: 1,
     home: { x: 0, y: 0, rot: 0 },
     x: new Spring(0),
@@ -171,7 +185,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     opacity: new Spring(0),
     delay: 0,
     z: 0,
-    drawn: { transform: "", opacity: "", zIndex: "", events: "", sheen: "" },
+    drawn: { transform: "", opacity: "", zIndex: "", events: "", sheen: "", visible: true },
   }));
   /** Sets in board order, from the filter buttons (or the photos, if there are none). */
   const filterButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-set-filter]")];
@@ -277,10 +291,22 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       print.h = h;
       print.w = h * print.ratio;
       print.boardScale = boardW(print) / print.w;
-      print.el.style.width = `${print.w}px`;
-      print.el.style.height = `${print.h}px`;
-      if (print.fullState === "none") print.img.sizes = `${Math.ceil(base)}px`;
+      // Laid out at board size to start with; see `refreshDetail`.
+      print.lw = 0;
+      layOut(print, false);
+      if (!print.src) print.img.sizes = `${Math.ceil(boardW(print))}px`;
     }
+  };
+
+  /** Lay a photo out small (board size) or big (gallery size). */
+  const layOut = (print: Print, big: boolean) => {
+    const lw = big ? print.w : Math.min(print.w, boardW(print));
+    if (Math.abs(lw - print.lw) < 0.5) return false;
+    print.lw = lw;
+    print.lh = lw / print.ratio;
+    print.el.style.width = `${print.lw}px`;
+    print.el.style.height = `${print.lh}px`;
+    return true;
   };
 
   // ── Arrangements ──
@@ -653,41 +679,79 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
   // ── Sharpness ──
 
-  /** Swap in the full-size image once it's decoded, so nothing blanks or flickers. */
-  const sharpen = (print: Print) => {
-    if (print.fullState !== "none" || !print.full) return;
-    print.fullState = "loading";
+  /**
+   * Show the image at `url`, swapping it in only once it's decoded, so nothing
+   * blanks or flickers. Swapping a big image back out for a small one lets
+   * the browser free the big one.
+   */
+  const showSource = (print: Print, url: string) => {
+    if (!url || print.src === url) return;
+    print.src = url;
+    if (print.img.currentSrc === new URL(url, location.href).href) return;
     const loader = new Image();
-    loader.src = print.full;
+    loader.decoding = "async";
+    loader.src = url;
     loader
       .decode()
       .then(() => {
-        // Put the decoded image in place of the small one, rather than
-        // changing the small one's source, so the swap is instant.
-        loader.alt = print.img.alt;
+        if (print.src !== url) return;
+        loader.alt = "";
         loader.draggable = false;
         print.img.replaceWith(loader);
         print.img = loader;
-        print.fullState = "done";
       })
       .catch(() => {
-        print.fullState = "none";
+        if (print.src === url) print.src = "";
       });
   };
 
-  /** Load the full image for any photo shown bigger than its board-sized file. */
-  const checkSharpness = () => {
-    const dpr = window.devicePixelRatio || 1;
-    const loaded = (print: Print) => print.img.naturalWidth || base * dpr;
+  // Phones get no more than 2 device pixels per CSS pixel: past that the
+  // difference is invisible and the memory isn't.
+  const pixelRatio = () => Math.min(window.devicePixelRatio || 1, 2);
+
+  /**
+   * Fit each photo's layout and image to how big it's actually shown: big
+   * only when it needs to be, and the smallest image that stays sharp. This
+   * is what keeps memory down, which matters most on phones, where running
+   * out reloads the page. It runs once things settle, not during scrubbing
+   * or swiping, when a softer image for a moment is fine.
+   */
+  const refreshDetail = () => {
+    const dpr = pixelRatio();
+    const front = mode === "gallery" ? sequence[active] : null;
+    let changed = false;
+    const zoomNow = mode === "gallery" ? 1 : Math.max(zoom.target, zoom.value);
     sequence.forEach((print, i) => {
-      if (mode === "gallery") {
-        if (Math.abs(i - active) <= 2) sharpen(print);
-        return;
-      }
-      const shown = print.w * print.scale.target * zoom.target * dpr;
-      if (shown > loaded(print) * 1.15) sharpen(print);
+      // Off screen (with half a screen to spare) counts as not shown.
+      const sx = (print.x.target - cam.x.target) * zoomNow;
+      const sy = (print.y.target - cam.y.target) * zoomNow;
+      const onScreen = Math.abs(sx) < vw && Math.abs(sy) < vh;
+      const shown = print.opacity.target > 0 && onScreen;
+      // How wide it is or is about to be on screen, whichever is bigger, so
+      // nothing goes soft while it's still animating.
+      const width = shown ? print.w * Math.max(print.scale.target, print.scale.value) * zoomNow : 0;
+      // In the gallery only the front photo and its nearest neighbours get a
+      // full-size layer; the rest of each stack stays small.
+      const near = !front || Math.abs(i - active) <= 2;
+      changed = layOut(print, near && width > boardW(print) * 1.05) || changed;
+      // The front photo alone gets every pixel the screen has: it's the one
+      // being looked at closely, and tilting it softens it a little.
+      const need = width * (print === front ? Math.min(window.devicePixelRatio || 1, 3) : dpr);
+      const source = print.sources.find((s) => s.w >= need * 0.95) ?? print.sources[print.sources.length - 1];
+      if (source) showSource(print, need ? source.url : print.sources[0].url);
     });
+    // Photos filtered out of the gallery's sequence drop to their smallest.
+    for (const print of prints) if (!sequence.includes(print) && print.sources[0]) showSource(print, print.sources[0].url);
+    if (changed) kick();
   };
+
+  let detailTimer = 0;
+  /** Run `refreshDetail` once things have been still for a moment. */
+  const scheduleDetail = (delay = 160) => {
+    clearTimeout(detailTimer);
+    detailTimer = window.setTimeout(refreshDetail, delay);
+  };
+  const checkSharpness = () => scheduleDetail();
 
   // ── Gallery ──
 
@@ -705,10 +769,24 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     sequence[active].el.focus({ preventScroll: true });
   };
 
+  /**
+   * Move the gallery to the current photo. Only the cheap part happens here,
+   * so scrubbing the dial or swiping fast stays fluid; sharper images, focus
+   * and the glint wait until it's been still for a moment.
+   */
   const show = () => {
     setTargets();
-    checkSharpness();
     updateCaption();
+    updateStrip();
+    kick();
+    clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(settleGallery, 160);
+  };
+
+  let settleTimer = 0;
+  const settleGallery = () => {
+    if (mode !== "gallery") return;
+    refreshDetail();
     focusActive();
     const front = sequence[active];
     if (glint) {
@@ -717,8 +795,6 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       glintDrawn = "";
       for (const print of prints) if (print !== front) print.el.classList.remove("has-glint");
     }
-    updateStrip();
-    kick();
   };
 
   // ── Dial ──
@@ -839,6 +915,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     board.dataset.mode = "gallery";
     galleryBar.hidden = false;
     boardBar.hidden = true;
+    closeButton.hidden = false;
     setCursorLabel("");
     buildDial();
     show();
@@ -862,6 +939,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     board.dataset.mode = "board";
     galleryBar.hidden = true;
     boardBar.hidden = false;
+    closeButton.hidden = true;
     zoom.target = boardZoom;
     setTargets();
     updateCaption();
@@ -880,42 +958,28 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
   const labelFor = (print: Print | null) => {
     if (mode === "board") return print ? (editing ? "Move" : "Open") : "";
-    if (!print) return "Close";
+    if (!print) return "";
     const d = sequence.indexOf(print) - active;
-    return d < 0 ? "Prev" : d > 0 ? "Next" : "Grab";
+    return d < 0 ? "Prev" : d > 0 ? "Next" : gallerySide(pointer.x) < 0 ? "Prev" : "Next";
   };
 
   // ── Gallery clicks ──
 
   /**
-   * Which part of the gallery a point is in: the front photo (0), either
-   * side of it within the strip (-1 or 1), or above and below it ("close").
-   * Every click to a side moves exactly one photo, so the number of clicks
-   * is the number of photos you go through.
+   * Which way a click at `x` moves the gallery: anywhere left of the front
+   * photo's centre goes back one, anywhere right goes on one, so the number
+   * of clicks is the number of photos you go through. Closing is the ×
+   * button (or Escape), so no part of the screen is a trap.
    */
-  const galleryZone = (x: number, y: number): -1 | 0 | 1 | "close" => {
+  const gallerySide = (x: number): -1 | 1 => {
     // Measured from where the front photo is settling, not where it is
     // mid-animation, so quick clicks still count from the right place.
     const front = sequence[active];
     const cx = front.x.target - cam.x.target + vw / 2;
-    const cy = front.y.target - cam.y.target + vh / 2;
-    const halfW = (front.w * front.scale.target) / 2;
-    const halfH = (front.h * front.scale.target) / 2;
-    if (Math.abs(x - cx) <= halfW) return Math.abs(y - cy) <= halfH ? 0 : "close";
-    // Beside the front photo, only the band the side photos fill counts;
-    // the empty space above and below them closes the gallery.
-    const side = x < cx ? -1 : 1;
-    const neighbour = sequence[active + side];
-    if (!neighbour) return "close";
-    const sideHalfH = (neighbour.h * neighbour.scale.target) / 2;
-    return Math.abs(y - cy) <= sideHalfH + 10 ? side : "close";
+    return x < cx ? -1 : 1;
   };
 
-  const galleryClick = (x: number, y: number) => {
-    const zone = galleryZone(x, y);
-    if (zone === "close") closeGallery();
-    else if (zone !== 0) go(zone);
-  };
+  const galleryClick = (x: number) => go(gallerySide(x));
 
   // ── Grab and tilt ──
 
@@ -933,12 +997,37 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   };
 
   const releaseGrab = (instant = false) => {
+    clearTimeout(holdTimer);
+    pendingGrab = null;
+    // The click that follows letting go of a tilt shouldn't move the gallery.
+    if (grab.held && !instant) draggedAt = performance.now();
     grab.held = null;
     for (const spring of [grab.rx, grab.ry]) spring.target = 0;
     grab.lift.target = 1;
     if (instant) grabSprings.forEach((spring) => spring.snap());
     board.classList.remove("is-dragging");
     kick();
+  };
+
+  /** How long a finger has to stay still on the front photo to tilt it. */
+  const HOLD_MS = 320;
+  let holdTimer = 0;
+  /** A press on the front photo that might become a tilt. */
+  let pendingGrab: { id: number; x: number; y: number; touch: boolean } | null = null;
+
+  const startGrab = (print: Print, id: number, x: number, y: number) => {
+    pendingGrab = null;
+    clearTimeout(holdTimer);
+    grab.held = { id };
+    grab.lift.target = 1.012;
+    try {
+      print.el.setPointerCapture(id);
+    } catch {
+      // The pointer may already be gone.
+    }
+    board.classList.add("is-dragging");
+    setCursorLabel("");
+    aimGrab(x, y);
   };
 
   const setHovered = (print: Print | null) => {
@@ -1089,21 +1178,46 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   window.addEventListener("pointercancel", endPointer);
 
   for (const print of prints) {
+    // The front photo tilts when it's held. With a mouse, pressing and
+    // moving tilts it; with a finger, a swipe moves through the gallery, so
+    // tilting waits for a press and hold.
     print.el.addEventListener("pointerdown", (event) => {
-      if (mode !== "gallery" || event.button !== 0) return;
-      if (galleryZone(event.clientX, event.clientY) !== 0) return;
-      event.stopPropagation();
-      grab.held = { id: event.pointerId };
-      grab.lift.target = 1.012;
-      print.el.setPointerCapture(event.pointerId);
-      board.classList.add("is-dragging");
-      aimGrab(event.clientX, event.clientY);
+      if (mode !== "gallery" || event.button !== 0 || print !== sequence[active]) return;
+      const touch = event.pointerType !== "mouse";
+      pendingGrab = { id: event.pointerId, x: event.clientX, y: event.clientY, touch };
+      if (!touch) {
+        // The board's drag would swipe; with a mouse, dragging the photo tilts.
+        event.stopPropagation();
+        print.el.setPointerCapture(event.pointerId);
+        return;
+      }
+      clearTimeout(holdTimer);
+      holdTimer = window.setTimeout(() => {
+        // Held still: tilt instead of swipe.
+        if (!pendingGrab || pendingGrab.id !== event.pointerId || drag?.moved || touches.size > 1) return;
+        drag = null;
+        startGrab(print, event.pointerId, pointer.x, pointer.y);
+      }, HOLD_MS);
     });
     print.el.addEventListener("pointermove", (event) => {
-      if (grab.held?.id === event.pointerId) aimGrab(event.clientX, event.clientY);
+      if (grab.held?.id === event.pointerId) return aimGrab(event.clientX, event.clientY);
+      // A mouse that has moved past a few px is tilting, not clicking.
+      if (pendingGrab?.id === event.pointerId && !pendingGrab.touch) {
+        if (Math.hypot(event.clientX - pendingGrab.x, event.clientY - pendingGrab.y) > 4) {
+          startGrab(print, event.pointerId, event.clientX, event.clientY);
+        }
+      }
+    });
+    // A long press shouldn't bring up the system menu for the image.
+    print.el.addEventListener("contextmenu", (event) => {
+      if (mode === "gallery") event.preventDefault();
     });
     const letGo = (event: PointerEvent) => {
       if (grab.held?.id === event.pointerId) releaseGrab();
+      else if (pendingGrab?.id === event.pointerId) {
+        clearTimeout(holdTimer);
+        pendingGrab = null;
+      }
     };
     print.el.addEventListener("pointerup", letGo);
     print.el.addEventListener("pointercancel", letGo);
@@ -1119,7 +1233,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       event.stopPropagation();
       if (wasDrag() || editing) return;
       if (mode === "board") return openGallery(print);
-      galleryClick(event.clientX, event.clientY);
+      galleryClick(event.clientX);
     });
     // Keyboard users: bring a focused photo into view.
     print.el.addEventListener("focus", () => {
@@ -1132,18 +1246,17 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   }
 
   board.addEventListener("click", (event) => {
-    if (!wasDrag() && mode === "gallery") galleryClick(event.clientX, event.clientY);
+    if (!wasDrag() && mode === "gallery") galleryClick(event.clientX);
   });
   // Over the bars at the top and bottom, the gallery's labels don't apply.
   board.addEventListener("pointerleave", () => {
     if (mode === "gallery" && !grab.held) setCursorLabel("");
   });
-  // In the gallery, the cursor label follows the click zones rather than
-  // whichever photo happens to be under it.
+  // In the gallery, the cursor label follows which side of the front photo
+  // it's on rather than whichever photo happens to be under it.
   board.addEventListener("pointermove", (event) => {
     if (mode !== "gallery" || grab.held) return;
-    const zone = galleryZone(event.clientX, event.clientY);
-    setCursorLabel(zone === 0 ? "Grab" : zone === -1 ? "Prev" : zone === 1 ? "Next" : "Close");
+    setCursorLabel(gallerySide(event.clientX) < 0 ? "Prev" : "Next");
   });
 
   document.querySelector("[data-prev]")?.addEventListener("click", () => go(-1));
@@ -1315,10 +1428,20 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       const rx = held ? grab.rx.value : 0;
       const ry = print.tilt.value + (held ? grab.ry.value : 0);
       const lift = held ? grab.lift.value : 1;
+      // Faded right out: hidden, so the browser doesn't keep a layer for it.
+      const visible = print.opacity.value > 0.004 || print.opacity.target > 0;
+      if (visible !== print.drawn.visible) {
+        print.drawn.visible = visible;
+        print.el.style.visibility = visible ? "" : "hidden";
+      }
+      if (!visible) continue;
+      // Positions are worked out at gallery size; the element may be laid out
+      // smaller, so the scale makes up the difference.
+      const layoutScale = print.w / print.lw;
       const transform =
-        `translate3d(${(sx - print.w / 2).toFixed(2)}px, ${(sy - print.h / 2).toFixed(2)}px, 0) ` +
+        `translate3d(${(sx - print.lw / 2).toFixed(2)}px, ${(sy - print.lh / 2).toFixed(2)}px, 0) ` +
         `perspective(1400px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) ` +
-        `rotate(${print.rot.value.toFixed(2)}deg) scale(${(print.scale.value * z * lift).toFixed(4)})`;
+        `rotate(${print.rot.value.toFixed(2)}deg) scale(${(print.scale.value * z * lift * layoutScale).toFixed(4)})`;
       if (held && glint?.ready()) {
         // The surface-mapped light follows the tilt; it settles back to a
         // flat grey that leaves the photo untouched.
@@ -1409,6 +1532,8 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       view.some((s) => !s.settled) ||
       (!outside && (Math.abs(pointer.x - cursorPos.x) > 0.2 || Math.abs(pointer.y - cursorPos.y) > 0.2));
     raf = moving ? requestAnimationFrame(frame) : 0;
+    // Once everything has stopped, fit layouts and images to where they ended up.
+    if (!raf) scheduleDetail(60);
   };
 
   // ── Start ──

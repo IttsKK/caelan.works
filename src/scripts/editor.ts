@@ -481,7 +481,8 @@ export function startEditor(api: BoardApi) {
     const zoom = api.view().zoom;
     for (const print of prints) {
       if (!selected.has(print) && !isNew(print)) continue;
-      const scale = print.boardScale * zoom || 1;
+      // The element may be laid out smaller than its gallery size.
+      const scale = print.boardScale * zoom * (print.w / (print.lw || print.w)) || 1;
       const width = (1.5 / scale).toFixed(2);
       if (drawnWidth.get(print) !== width) {
         drawnWidth.set(print, width);
