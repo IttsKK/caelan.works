@@ -67,6 +67,8 @@ export interface Print {
   img: HTMLImageElement;
   ratio: number;
   warmth: number;
+  /** The one colour it reads as (see `readAccent` in `src/data/colour.ts`). */
+  accent: { hue: number; sat: number; light: number; neutral: boolean };
   light: number;
   group: number;
   order: number;
@@ -155,6 +157,10 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     img: el.querySelector("img")!,
     ratio: Number(el.dataset.ratio) || 0.75,
     warmth: Number(el.dataset.warmth) || 0,
+    accent: (() => {
+      const [hue, sat, light, neutral] = (el.dataset.accent ?? "0,0,0.5,1").split(",").map(Number);
+      return { hue, sat, light, neutral: neutral === 1 };
+    })(),
     light: Number(el.dataset.light) || 0.5,
     group: Number(el.dataset.group) || 0,
     order: Number(el.dataset.order) || 0,
@@ -547,12 +553,76 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     axis = { from: -width / 2 - base / 2, to: width / 2 + base / 2, y: bottom + base * 0.45 };
     axisLabels[0].textContent = labels[0];
     axisLabels[1].textContent = labels[1];
+    axisEl.style.borderImage = "";
+  };
+
+  /**
+   * A rainbow: columns running red, orange, yellow, green, blue, purple,
+   * each light at the top to dark at the bottom, then after a gap the photos
+   * with no real colour. Placed by order rather than by exact hue, so it
+   * reads as one gradient however the colours happen to be spread (a lot of
+   * sunsets and a lot of blue would otherwise leave a hole where green goes).
+   */
+  const arrangeRainbow = () => {
+    const random = seeded(31);
+    // Starting a little before pure red, so pinkish reds stay with the reds.
+    const hueOf = (p: Print) => (p.accent.hue + 20) % 360;
+    const shown = visible();
+    const coloured = shown.filter((p) => !p.accent.neutral).sort((a, b) => hueOf(a) - hueOf(b));
+    const neutral = shown.filter((p) => p.accent.neutral);
+    // Columns about as tall as the screen is to its width allows.
+    const tall = Math.max(...shown.map((p) => boardH(p)));
+    const perColumn = clamp(Math.round(Math.sqrt(shown.length / ((vw / vh) * 1.6))), 2, 11);
+    // Split evenly, so no column is left with one photo at the end.
+    const split = (list: Print[]) => {
+      const count = Math.ceil(list.length / perColumn);
+      return Array.from({ length: count }, (_, c) =>
+        list.slice(Math.round((c * list.length) / count), Math.round(((c + 1) * list.length) / count)),
+      );
+    };
+    const columns = split(coloured);
+    const firstNeutral = columns.length;
+    columns.push(...split(neutral));
+    // Light at the top of each column, dark at the bottom.
+    for (const column of columns) column.sort((a, b) => b.accent.light - a.accent.light);
+
+    const gap = base * 0.14;
+    const widths = columns.map((column) => Math.max(...column.map(boardW)));
+    const total = widths.reduce((sum, w) => sum + w + gap, 0) + (neutral.length ? base * 0.6 : 0);
+    let x = -total / 2;
+    sequence = [];
+    const stops: string[] = [];
+    columns.forEach((column, c) => {
+      if (c === firstNeutral && c > 0) x += base * 0.6;
+      const cx = x + widths[c] / 2;
+      const height = column.reduce((sum, p) => sum + boardH(p) + gap, -gap);
+      let y = -height / 2;
+      for (const print of column) {
+        print.home.x = cx + (random() - 0.5) * gap * 0.6;
+        print.home.y = y + boardH(print) / 2;
+        print.home.rot = (random() - 0.5) * 3;
+        print.z = sequence.length;
+        sequence.push(print);
+        y += boardH(print) + gap;
+      }
+      // The line under it runs through the columns' colours.
+      const { hue, light, neutral: grey } = column[Math.floor(column.length / 2)].accent;
+      const colour = grey ? `hsl(0 0% ${(35 + light * 40).toFixed(0)}%)` : `hsl(${hue.toFixed(0)} 55% 58%)`;
+      stops.push(`${colour} ${(((cx + total / 2) / total) * 100).toFixed(1)}%`);
+      x += widths[c] + gap;
+    });
+
+    const bottom = Math.max(...sequence.map((p) => p.home.y + boardH(p) / 2));
+    axis = { from: -total / 2, to: total / 2, y: bottom + tall * 0.3 };
+    axisLabels[0].textContent = "";
+    axisLabels[1].textContent = "";
+    axisEl.style.borderImage = `linear-gradient(90deg, ${stops.join(", ")}) 1`;
   };
 
   const arrange = (stagger: boolean) => {
     axis = null;
     if (arrangement === "loose") arrangeLoose();
-    else if (arrangement === "colour") arrangeSpectrum((p) => p.warmth, ["Cool", "Warm"]);
+    else if (arrangement === "colour") arrangeRainbow();
     else arrangeSpectrum((p) => p.light, ["Dark", "Light"]);
     measure();
 
@@ -1307,8 +1377,9 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     arrangement = next;
     arrangeButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.arrange === next)));
     arrange(true);
-    setZoom(boardZoom);
     setTargets();
+    // Each arrangement only makes sense seen whole.
+    fitView();
   };
   arrangeButtons.forEach((button) =>
     button.addEventListener("click", () => setArrangement(button.dataset.arrange as Arrangement)),
