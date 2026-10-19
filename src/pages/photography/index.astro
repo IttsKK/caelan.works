@@ -98,6 +98,12 @@ for (const set of sets) {
               data-ratio={print.ratio}
               data-warmth={coolToWarm(print.colour.hue).toFixed(1)}
               data-light={print.colour.light.toFixed(3)}
+              data-accent={[
+                print.colour.accent.hue.toFixed(1),
+                print.colour.accent.sat.toFixed(3),
+                print.colour.accent.light.toFixed(3),
+                print.colour.accent.neutral ? 1 : 0,
+              ].join(",")}
               data-group={placements[i].group}
               data-order={placements[i].order}
               data-gx={placements[i].gx.toFixed(3)}

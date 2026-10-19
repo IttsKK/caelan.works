@@ -67,6 +67,8 @@ export interface Print {
   img: HTMLImageElement;
   ratio: number;
   warmth: number;
+  /** The one colour it reads as (see `readAccent` in `src/data/colour.ts`). */
+  accent: { hue: number; sat: number; light: number; neutral: boolean };
   light: number;
   group: number;
   order: number;
@@ -155,6 +157,10 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     img: el.querySelector("img")!,
     ratio: Number(el.dataset.ratio) || 0.75,
     warmth: Number(el.dataset.warmth) || 0,
+    accent: (() => {
+      const [hue, sat, light, neutral] = (el.dataset.accent ?? "0,0,0.5,1").split(",").map(Number);
+      return { hue, sat, light, neutral: neutral === 1 };
+    })(),
     light: Number(el.dataset.light) || 0.5,
     group: Number(el.dataset.group) || 0,
     order: Number(el.dataset.order) || 0,
@@ -547,12 +553,76 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     axis = { from: -width / 2 - base / 2, to: width / 2 + base / 2, y: bottom + base * 0.45 };
     axisLabels[0].textContent = labels[0];
     axisLabels[1].textContent = labels[1];
+    axisEl.style.borderImage = "";
+  };
+
+  /**
+   * A rainbow: columns running red, orange, yellow, green, blue, purple,
+   * each light at the top to dark at the bottom, then after a gap the photos
+   * with no real colour. Placed by order rather than by exact hue, so it
+   * reads as one gradient however the colours happen to be spread (a lot of
+   * sunsets and a lot of blue would otherwise leave a hole where green goes).
+   */
+  const arrangeRainbow = () => {
+    const random = seeded(31);
+    // Starting a little before pure red, so pinkish reds stay with the reds.
+    const hueOf = (p: Print) => (p.accent.hue + 20) % 360;
+    const shown = visible();
+    const coloured = shown.filter((p) => !p.accent.neutral).sort((a, b) => hueOf(a) - hueOf(b));
+    const neutral = shown.filter((p) => p.accent.neutral);
+    // Columns about as tall as the screen is to its width allows.
+    const tall = Math.max(...shown.map((p) => boardH(p)));
+    const perColumn = clamp(Math.round(Math.sqrt(shown.length / ((vw / vh) * 1.6))), 2, 11);
+    // Split evenly, so no column is left with one photo at the end.
+    const split = (list: Print[]) => {
+      const count = Math.ceil(list.length / perColumn);
+      return Array.from({ length: count }, (_, c) =>
+        list.slice(Math.round((c * list.length) / count), Math.round(((c + 1) * list.length) / count)),
+      );
+    };
+    const columns = split(coloured);
+    const firstNeutral = columns.length;
+    columns.push(...split(neutral));
+    // Light at the top of each column, dark at the bottom.
+    for (const column of columns) column.sort((a, b) => b.accent.light - a.accent.light);
+
+    const gap = base * 0.14;
+    const widths = columns.map((column) => Math.max(...column.map(boardW)));
+    const total = widths.reduce((sum, w) => sum + w + gap, 0) + (neutral.length ? base * 0.6 : 0);
+    let x = -total / 2;
+    sequence = [];
+    const stops: string[] = [];
+    columns.forEach((column, c) => {
+      if (c === firstNeutral && c > 0) x += base * 0.6;
+      const cx = x + widths[c] / 2;
+      const height = column.reduce((sum, p) => sum + boardH(p) + gap, -gap);
+      let y = -height / 2;
+      for (const print of column) {
+        print.home.x = cx + (random() - 0.5) * gap * 0.6;
+        print.home.y = y + boardH(print) / 2;
+        print.home.rot = (random() - 0.5) * 3;
+        print.z = sequence.length;
+        sequence.push(print);
+        y += boardH(print) + gap;
+      }
+      // The line under it runs through the columns' colours.
+      const { hue, light, neutral: grey } = column[Math.floor(column.length / 2)].accent;
+      const colour = grey ? `hsl(0 0% ${(35 + light * 40).toFixed(0)}%)` : `hsl(${hue.toFixed(0)} 55% 58%)`;
+      stops.push(`${colour} ${(((cx + total / 2) / total) * 100).toFixed(1)}%`);
+      x += widths[c] + gap;
+    });
+
+    const bottom = Math.max(...sequence.map((p) => p.home.y + boardH(p) / 2));
+    axis = { from: -total / 2, to: total / 2, y: bottom + tall * 0.3 };
+    axisLabels[0].textContent = "";
+    axisLabels[1].textContent = "";
+    axisEl.style.borderImage = `linear-gradient(90deg, ${stops.join(", ")}) 1`;
   };
 
   const arrange = (stagger: boolean) => {
     axis = null;
     if (arrangement === "loose") arrangeLoose();
-    else if (arrangement === "colour") arrangeSpectrum((p) => p.warmth, ["Cool", "Warm"]);
+    else if (arrangement === "colour") arrangeRainbow();
     else arrangeSpectrum((p) => p.light, ["Dark", "Light"]);
     measure();
 
@@ -592,9 +662,14 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
   // ── Camera ──
 
-  /** Where the camera can sit on one axis: centred if the board fits, else between its edges. */
+  /**
+   * Where the camera can sit on one axis. Bigger than the screen, the board
+   * can't be pulled past its edges; smaller, it can sit anywhere as long as
+   * it stays in view, so zooming toward a photo near its edge isn't dragged
+   * back to the middle.
+   */
   const camRange = (min: number, max: number, view: number) =>
-    max - min <= view ? [(min + max) / 2, (min + max) / 2] : [min + view / 2, max - view / 2];
+    max - min <= view ? [max - view / 2, min + view / 2] : [min + view / 2, max - view / 2];
 
   const clampCam = () => {
     const [x0, x1] = camRange(bounds.minX, bounds.maxX, vw / zoom.target);
@@ -605,20 +680,78 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
   // ── Zoom ──
 
+  /**
+   * While a zoom animates, the board point that stays put under the pointer:
+   * where it is on the board, where it started on screen and where it ends
+   * up (the same place, unless the edges of the board get in the way).
+   * Without this, the camera and the zoom ease separately and the point
+   * under the pointer wanders off mid-zoom.
+   */
+  let zoomAnchor: {
+    wx: number;
+    wy: number;
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    z0: number;
+    z1: number;
+    /** The camera target it set; if anything else moves the camera, it lets go. */
+    cx: number;
+    cy: number;
+  } | null = null;
+
+  /** The board point under a screen point, where things are on screen right now. */
+  const boardPointAt = (x: number, y: number) => ({
+    x: cam.x.value + (x - vw / 2) / zoom.value,
+    y: cam.y.value + (y - vh / 2) / zoom.value,
+  });
+
   /** Zoom, keeping the board point under `anchor` (screen px) in place. */
   const setZoom = (value: number, anchor = { x: vw / 2, y: vh / 2 }) => {
     if (mode !== "board") return;
-    const before = zoom.target;
     boardZoom = clamp(value, zoomMin, zoomMax);
-    const wx = cam.x.target + (anchor.x - vw / 2) / before;
-    const wy = cam.y.target + (anchor.y - vh / 2) / before;
-    cam.x.target = wx - (anchor.x - vw / 2) / boardZoom;
-    cam.y.target = wy - (anchor.y - vh / 2) / boardZoom;
+    const point = boardPointAt(anchor.x, anchor.y);
+    cam.x.target = point.x - (anchor.x - vw / 2) / boardZoom;
+    cam.y.target = point.y - (anchor.y - vh / 2) / boardZoom;
     zoom.target = boardZoom;
     zoomLevel.textContent = `${Math.round(boardZoom * 100)}%`;
     clampCam();
+    zoomAnchor =
+      Math.abs(Math.log(boardZoom / zoom.value)) > 1e-4
+        ? {
+            wx: point.x,
+            wy: point.y,
+            from: { x: anchor.x, y: anchor.y },
+            to: { x: (point.x - cam.x.target) * boardZoom + vw / 2, y: (point.y - cam.y.target) * boardZoom + vh / 2 },
+            z0: zoom.value,
+            z1: boardZoom,
+            cx: cam.x.target,
+            cy: cam.y.target,
+          }
+        : null;
     checkSharpness();
     kick();
+  };
+
+  /** Hold the zoom's anchor point in place for this frame (see `zoomAnchor`). */
+  const followZoomAnchor = () => {
+    const a = zoomAnchor;
+    if (!a) return;
+    if (a.cx !== cam.x.target || a.cy !== cam.y.target || mode !== "board") {
+      zoomAnchor = null;
+      return;
+    }
+    // How far through the zoom it is, evenly in scale, not in raw zoom.
+    const t = clamp(Math.log(zoom.value / a.z0) / Math.log(a.z1 / a.z0), 0, 1);
+    const sx = a.from.x + (a.to.x - a.from.x) * t;
+    const sy = a.from.y + (a.to.y - a.from.y) * t;
+    cam.x.value = a.wx - (sx - vw / 2) / zoom.value;
+    cam.y.value = a.wy - (sy - vh / 2) / zoom.value;
+    cam.x.velocity = cam.y.velocity = 0;
+    if (zoom.settled) {
+      cam.x.snap();
+      cam.y.snap();
+      zoomAnchor = null;
+    }
   };
 
   const pan = (dx: number, dy: number) => {
@@ -958,28 +1091,42 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
   const labelFor = (print: Print | null) => {
     if (mode === "board") return print ? (editing ? "Move" : "Open") : "";
-    if (!print) return "";
-    const d = sequence.indexOf(print) - active;
-    return d < 0 ? "Prev" : d > 0 ? "Next" : gallerySide(pointer.x) < 0 ? "Prev" : "Next";
+    return zoneLabel(galleryZone(pointer.x, pointer.y));
   };
 
   // ── Gallery clicks ──
 
   /**
-   * Which way a click at `x` moves the gallery: anywhere left of the front
-   * photo's centre goes back one, anywhere right goes on one, so the number
-   * of clicks is the number of photos you go through. Closing is the ×
-   * button (or Escape), so no part of the screen is a trap.
+   * What a click at a point does in the gallery. The front photo is held
+   * and tilted (0). Beside it, in the band the photos fill, the left side
+   * goes back one and the right side on one, so the number of clicks is the
+   * number of photos you go through. Above and below the photos closes it.
    */
-  const gallerySide = (x: number): -1 | 1 => {
+  const galleryZone = (x: number, y: number): -1 | 0 | 1 | "close" => {
     // Measured from where the front photo is settling, not where it is
     // mid-animation, so quick clicks still count from the right place.
     const front = sequence[active];
     const cx = front.x.target - cam.x.target + vw / 2;
-    return x < cx ? -1 : 1;
+    const cy = front.y.target - cam.y.target + vh / 2;
+    const half = (print: Print | undefined) => (print ? (print.h * print.scale.target) / 2 : 0);
+    if (Math.abs(x - cx) <= (front.w * front.scale.target) / 2) {
+      return Math.abs(y - cy) <= half(front) ? 0 : "close";
+    }
+    // Beside it, the band is as tall as the front photo or the photo next
+    // to it on that side, whichever is taller.
+    const side = x < cx ? -1 : 1;
+    const band = Math.max(half(front), half(sequence[active + side]));
+    return Math.abs(y - cy) <= band + 10 ? side : "close";
   };
 
-  const galleryClick = (x: number) => go(gallerySide(x));
+  const zoneLabel = (zone: ReturnType<typeof galleryZone>) =>
+    zone === "close" ? "Close" : zone === 0 ? "Grab" : zone < 0 ? "Prev" : "Next";
+
+  const galleryClick = (x: number, y: number) => {
+    const zone = galleryZone(x, y);
+    if (zone === "close") closeGallery();
+    else if (zone !== 0) go(zone);
+  };
 
   // ── Grab and tilt ──
 
@@ -997,8 +1144,6 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   };
 
   const releaseGrab = (instant = false) => {
-    clearTimeout(holdTimer);
-    pendingGrab = null;
     // The click that follows letting go of a tilt shouldn't move the gallery.
     if (grab.held && !instant) draggedAt = performance.now();
     grab.held = null;
@@ -1009,17 +1154,14 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     kick();
   };
 
-  /** How long a finger has to stay still on the front photo to tilt it. */
-  const HOLD_MS = 320;
-  let holdTimer = 0;
-  /** A press on the front photo that might become a tilt. */
-  let pendingGrab: { id: number; x: number; y: number; touch: boolean } | null = null;
+  /** Where a hold started and how fast it's moving sideways, to tell a tilt from a swipe. */
+  let held = { x: 0, y: 0, t: 0, lastX: 0, lastT: 0, vx: 0 };
 
   const startGrab = (print: Print, id: number, x: number, y: number) => {
-    pendingGrab = null;
-    clearTimeout(holdTimer);
     grab.held = { id };
     grab.lift.target = 1.012;
+    const now = performance.now();
+    held = { x, y, t: now, lastX: x, lastT: now, vx: 0 };
     try {
       print.el.setPointerCapture(id);
     } catch {
@@ -1028,6 +1170,19 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     board.classList.add("is-dragging");
     setCursorLabel("");
     aimGrab(x, y);
+  };
+
+  /**
+   * Whether letting go at `x`, `y` ends a swipe rather than a tilt: mostly
+   * sideways, far enough, and quick, or still moving fast when let go.
+   * Slowly tilting the photo around never counts.
+   */
+  const swipeOf = (x: number, y: number): -1 | 0 | 1 => {
+    const dx = x - held.x;
+    const dy = y - held.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return 0;
+    const quick = performance.now() - held.t < 450 || Math.abs(held.vx) > 0.35;
+    return quick ? (dx < 0 ? 1 : -1) : 0;
   };
 
   const setHovered = (print: Print | null) => {
@@ -1045,13 +1200,40 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   const wasDrag = () => performance.now() - draggedAt < 80;
 
   const touches = new Map<number, { x: number; y: number }>();
-  let pinch: { dist: number; zoom: number } | null = null;
+  /** A two-finger pinch: how far apart they started, the zoom then, and the board point between them. */
+  let pinch: { dist: number; zoom: number; point: { x: number; y: number } } | null = null;
   let drag: { x: number; y: number; camX: number; camY: number; moved: boolean; t: number; vx: number; vy: number } | null =
     null;
 
   const touchDistance = () => {
     const [a, b] = [...touches.values()];
     return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  const touchMiddle = () => {
+    const [a, b] = [...touches.values()];
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  };
+
+  /**
+   * Follow a pinch directly: the board point that started between the
+   * fingers stays between them, so pinching zooms there and moving both
+   * fingers pans.
+   */
+  const followPinch = () => {
+    if (!pinch || mode !== "board") return;
+    const middle = touchMiddle();
+    boardZoom = clamp((pinch.zoom * touchDistance()) / pinch.dist, zoomMin, zoomMax);
+    zoom.target = boardZoom;
+    zoom.snap();
+    cam.x.target = pinch.point.x - (middle.x - vw / 2) / boardZoom;
+    cam.y.target = pinch.point.y - (middle.y - vh / 2) / boardZoom;
+    clampCam();
+    cam.x.snap();
+    cam.y.snap();
+    zoomAnchor = null;
+    zoomLevel.textContent = `${Math.round(boardZoom * 100)}%`;
+    checkSharpness();
   };
 
   /** Whether the mouse is outside the window; the crosshair waits where it left. */
@@ -1090,7 +1272,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       if (touches.has(event.pointerId)) touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
       if (pinch && touches.size >= 2) {
-        setZoom((pinch.zoom * touchDistance()) / pinch.dist);
+        followPinch();
       } else if (drag) {
         const dx = event.clientX - drag.x;
         const dy = event.clientY - drag.y;
@@ -1134,7 +1316,8 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     if (event.button !== 0) return;
     if (event.pointerType === "touch") touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (touches.size >= 2 && mode === "board") {
-      pinch = { dist: touchDistance(), zoom: zoom.target };
+      const middle = touchMiddle();
+      pinch = { dist: touchDistance(), zoom: zoom.value, point: boardPointAt(middle.x, middle.y) };
       drag = null;
       return;
     }
@@ -1178,46 +1361,32 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   window.addEventListener("pointercancel", endPointer);
 
   for (const print of prints) {
-    // The front photo tilts when it's held. With a mouse, pressing and
-    // moving tilts it; with a finger, a swipe moves through the gallery, so
-    // tilting waits for a press and hold.
+    // Pressing the front photo picks it up and tilts it at once; swiping
+    // sideways while holding it moves through the gallery instead.
     print.el.addEventListener("pointerdown", (event) => {
       if (mode !== "gallery" || event.button !== 0 || print !== sequence[active]) return;
-      const touch = event.pointerType !== "mouse";
-      pendingGrab = { id: event.pointerId, x: event.clientX, y: event.clientY, touch };
-      if (!touch) {
-        // The board's drag would swipe; with a mouse, dragging the photo tilts.
-        event.stopPropagation();
-        print.el.setPointerCapture(event.pointerId);
-        return;
-      }
-      clearTimeout(holdTimer);
-      holdTimer = window.setTimeout(() => {
-        // Held still: tilt instead of swipe.
-        if (!pendingGrab || pendingGrab.id !== event.pointerId || drag?.moved || touches.size > 1) return;
-        drag = null;
-        startGrab(print, event.pointerId, pointer.x, pointer.y);
-      }, HOLD_MS);
+      // The board's own drag would swipe too.
+      event.stopPropagation();
+      startGrab(print, event.pointerId, event.clientX, event.clientY);
     });
     print.el.addEventListener("pointermove", (event) => {
-      if (grab.held?.id === event.pointerId) return aimGrab(event.clientX, event.clientY);
-      // A mouse that has moved past a few px is tilting, not clicking.
-      if (pendingGrab?.id === event.pointerId && !pendingGrab.touch) {
-        if (Math.hypot(event.clientX - pendingGrab.x, event.clientY - pendingGrab.y) > 4) {
-          startGrab(print, event.pointerId, event.clientX, event.clientY);
-        }
-      }
+      if (grab.held?.id !== event.pointerId) return;
+      const now = performance.now();
+      const dt = Math.max(1, now - held.lastT);
+      held.vx = held.vx * 0.5 + ((event.clientX - held.lastX) / dt) * 0.5;
+      held.lastX = event.clientX;
+      held.lastT = now;
+      aimGrab(event.clientX, event.clientY);
     });
     // A long press shouldn't bring up the system menu for the image.
     print.el.addEventListener("contextmenu", (event) => {
       if (mode === "gallery") event.preventDefault();
     });
     const letGo = (event: PointerEvent) => {
-      if (grab.held?.id === event.pointerId) releaseGrab();
-      else if (pendingGrab?.id === event.pointerId) {
-        clearTimeout(holdTimer);
-        pendingGrab = null;
-      }
+      if (grab.held?.id !== event.pointerId) return;
+      const step = event.type === "pointerup" ? swipeOf(event.clientX, event.clientY) : 0;
+      releaseGrab();
+      if (step) go(step);
     };
     print.el.addEventListener("pointerup", letGo);
     print.el.addEventListener("pointercancel", letGo);
@@ -1233,7 +1402,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       event.stopPropagation();
       if (wasDrag() || editing) return;
       if (mode === "board") return openGallery(print);
-      galleryClick(event.clientX);
+      galleryClick(event.clientX, event.clientY);
     });
     // Keyboard users: bring a focused photo into view.
     print.el.addEventListener("focus", () => {
@@ -1246,17 +1415,17 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   }
 
   board.addEventListener("click", (event) => {
-    if (!wasDrag() && mode === "gallery") galleryClick(event.clientX);
+    if (!wasDrag() && mode === "gallery") galleryClick(event.clientX, event.clientY);
   });
   // Over the bars at the top and bottom, the gallery's labels don't apply.
   board.addEventListener("pointerleave", () => {
     if (mode === "gallery" && !grab.held) setCursorLabel("");
   });
-  // In the gallery, the cursor label follows which side of the front photo
-  // it's on rather than whichever photo happens to be under it.
+  // In the gallery, the cursor label follows the click zones rather than
+  // whichever photo happens to be under it.
   board.addEventListener("pointermove", (event) => {
     if (mode !== "gallery" || grab.held) return;
-    setCursorLabel(gallerySide(event.clientX) < 0 ? "Prev" : "Next");
+    setCursorLabel(zoneLabel(galleryZone(event.clientX, event.clientY)));
   });
 
   document.querySelector("[data-prev]")?.addEventListener("click", () => go(-1));
@@ -1299,8 +1468,9 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     arrangement = next;
     arrangeButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.arrange === next)));
     arrange(true);
-    setZoom(boardZoom);
     setTargets();
+    // Each arrangement only makes sense seen whole.
+    fitView();
   };
   arrangeButtons.forEach((button) =>
     button.addEventListener("click", () => setArrangement(button.dataset.arrange as Arrangement)),
@@ -1392,6 +1562,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     const view = [cam.x, cam.y, zoom];
     if (reduced) view.forEach((s) => s.snap());
     else for (let i = 0; i < steps; i++) view.forEach((s) => s.step(STEP, CAM_K, CAM_C));
+    followZoomAnchor();
 
     // Held, the photo tracks the pointer firmly; let go, it wobbles back.
     const [gk, gc] = grab.held ? [420, 34] : [GRAB_K, GRAB_C];
