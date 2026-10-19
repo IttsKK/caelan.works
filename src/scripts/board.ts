@@ -662,9 +662,14 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
   // ── Camera ──
 
-  /** Where the camera can sit on one axis: centred if the board fits, else between its edges. */
+  /**
+   * Where the camera can sit on one axis. Bigger than the screen, the board
+   * can't be pulled past its edges; smaller, it can sit anywhere as long as
+   * it stays in view, so zooming toward a photo near its edge isn't dragged
+   * back to the middle.
+   */
   const camRange = (min: number, max: number, view: number) =>
-    max - min <= view ? [(min + max) / 2, (min + max) / 2] : [min + view / 2, max - view / 2];
+    max - min <= view ? [max - view / 2, min + view / 2] : [min + view / 2, max - view / 2];
 
   const clampCam = () => {
     const [x0, x1] = camRange(bounds.minX, bounds.maxX, vw / zoom.target);
@@ -675,20 +680,78 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
   // ── Zoom ──
 
+  /**
+   * While a zoom animates, the board point that stays put under the pointer:
+   * where it is on the board, where it started on screen and where it ends
+   * up (the same place, unless the edges of the board get in the way).
+   * Without this, the camera and the zoom ease separately and the point
+   * under the pointer wanders off mid-zoom.
+   */
+  let zoomAnchor: {
+    wx: number;
+    wy: number;
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    z0: number;
+    z1: number;
+    /** The camera target it set; if anything else moves the camera, it lets go. */
+    cx: number;
+    cy: number;
+  } | null = null;
+
+  /** The board point under a screen point, where things are on screen right now. */
+  const boardPointAt = (x: number, y: number) => ({
+    x: cam.x.value + (x - vw / 2) / zoom.value,
+    y: cam.y.value + (y - vh / 2) / zoom.value,
+  });
+
   /** Zoom, keeping the board point under `anchor` (screen px) in place. */
   const setZoom = (value: number, anchor = { x: vw / 2, y: vh / 2 }) => {
     if (mode !== "board") return;
-    const before = zoom.target;
     boardZoom = clamp(value, zoomMin, zoomMax);
-    const wx = cam.x.target + (anchor.x - vw / 2) / before;
-    const wy = cam.y.target + (anchor.y - vh / 2) / before;
-    cam.x.target = wx - (anchor.x - vw / 2) / boardZoom;
-    cam.y.target = wy - (anchor.y - vh / 2) / boardZoom;
+    const point = boardPointAt(anchor.x, anchor.y);
+    cam.x.target = point.x - (anchor.x - vw / 2) / boardZoom;
+    cam.y.target = point.y - (anchor.y - vh / 2) / boardZoom;
     zoom.target = boardZoom;
     zoomLevel.textContent = `${Math.round(boardZoom * 100)}%`;
     clampCam();
+    zoomAnchor =
+      Math.abs(Math.log(boardZoom / zoom.value)) > 1e-4
+        ? {
+            wx: point.x,
+            wy: point.y,
+            from: { x: anchor.x, y: anchor.y },
+            to: { x: (point.x - cam.x.target) * boardZoom + vw / 2, y: (point.y - cam.y.target) * boardZoom + vh / 2 },
+            z0: zoom.value,
+            z1: boardZoom,
+            cx: cam.x.target,
+            cy: cam.y.target,
+          }
+        : null;
     checkSharpness();
     kick();
+  };
+
+  /** Hold the zoom's anchor point in place for this frame (see `zoomAnchor`). */
+  const followZoomAnchor = () => {
+    const a = zoomAnchor;
+    if (!a) return;
+    if (a.cx !== cam.x.target || a.cy !== cam.y.target || mode !== "board") {
+      zoomAnchor = null;
+      return;
+    }
+    // How far through the zoom it is, evenly in scale, not in raw zoom.
+    const t = clamp(Math.log(zoom.value / a.z0) / Math.log(a.z1 / a.z0), 0, 1);
+    const sx = a.from.x + (a.to.x - a.from.x) * t;
+    const sy = a.from.y + (a.to.y - a.from.y) * t;
+    cam.x.value = a.wx - (sx - vw / 2) / zoom.value;
+    cam.y.value = a.wy - (sy - vh / 2) / zoom.value;
+    cam.x.velocity = cam.y.velocity = 0;
+    if (zoom.settled) {
+      cam.x.snap();
+      cam.y.snap();
+      zoomAnchor = null;
+    }
   };
 
   const pan = (dx: number, dy: number) => {
@@ -1137,13 +1200,40 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
   const wasDrag = () => performance.now() - draggedAt < 80;
 
   const touches = new Map<number, { x: number; y: number }>();
-  let pinch: { dist: number; zoom: number } | null = null;
+  /** A two-finger pinch: how far apart they started, the zoom then, and the board point between them. */
+  let pinch: { dist: number; zoom: number; point: { x: number; y: number } } | null = null;
   let drag: { x: number; y: number; camX: number; camY: number; moved: boolean; t: number; vx: number; vy: number } | null =
     null;
 
   const touchDistance = () => {
     const [a, b] = [...touches.values()];
     return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  const touchMiddle = () => {
+    const [a, b] = [...touches.values()];
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  };
+
+  /**
+   * Follow a pinch directly: the board point that started between the
+   * fingers stays between them, so pinching zooms there and moving both
+   * fingers pans.
+   */
+  const followPinch = () => {
+    if (!pinch || mode !== "board") return;
+    const middle = touchMiddle();
+    boardZoom = clamp((pinch.zoom * touchDistance()) / pinch.dist, zoomMin, zoomMax);
+    zoom.target = boardZoom;
+    zoom.snap();
+    cam.x.target = pinch.point.x - (middle.x - vw / 2) / boardZoom;
+    cam.y.target = pinch.point.y - (middle.y - vh / 2) / boardZoom;
+    clampCam();
+    cam.x.snap();
+    cam.y.snap();
+    zoomAnchor = null;
+    zoomLevel.textContent = `${Math.round(boardZoom * 100)}%`;
+    checkSharpness();
   };
 
   /** Whether the mouse is outside the window; the crosshair waits where it left. */
@@ -1182,7 +1272,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       if (touches.has(event.pointerId)) touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
       if (pinch && touches.size >= 2) {
-        setZoom((pinch.zoom * touchDistance()) / pinch.dist);
+        followPinch();
       } else if (drag) {
         const dx = event.clientX - drag.x;
         const dy = event.clientY - drag.y;
@@ -1226,7 +1316,8 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     if (event.button !== 0) return;
     if (event.pointerType === "touch") touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (touches.size >= 2 && mode === "board") {
-      pinch = { dist: touchDistance(), zoom: zoom.target };
+      const middle = touchMiddle();
+      pinch = { dist: touchDistance(), zoom: zoom.value, point: boardPointAt(middle.x, middle.y) };
       drag = null;
       return;
     }
@@ -1471,6 +1562,7 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
     const view = [cam.x, cam.y, zoom];
     if (reduced) view.forEach((s) => s.snap());
     else for (let i = 0; i < steps; i++) view.forEach((s) => s.step(STEP, CAM_K, CAM_C));
+    followZoomAnchor();
 
     // Held, the photo tracks the pointer firmly; let go, it wobbles back.
     const [gk, gc] = grab.held ? [420, 34] : [GRAB_K, GRAB_C];
