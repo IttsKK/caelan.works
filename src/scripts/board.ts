@@ -666,16 +666,21 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
 
   /**
    * Where the camera can sit on one axis. Bigger than the screen, the board
-   * can't be pulled past its edges; smaller, it can sit anywhere as long as
-   * it stays in view, so zooming toward a photo near its edge isn't dragged
-   * back to the middle.
+   * can't be pulled past its edges. Smaller, it can move off centre only as
+   * far as zooming in from all the way out has made room for, and stays in
+   * view: fully zoomed out it doesn't move at all, but zooming toward a
+   * photo near its edge isn't dragged back to the middle.
    */
-  const camRange = (min: number, max: number, view: number) =>
-    max - min <= view ? [max - view / 2, min + view / 2] : [min + view / 2, max - view / 2];
+  const camRange = (min: number, max: number, view: number, widest: number) => {
+    if (max - min > view) return [min + view / 2, max - view / 2];
+    const mid = (min + max) / 2;
+    const slack = Math.max(0, Math.min(view - (max - min), widest - view)) / 2;
+    return [mid - slack, mid + slack];
+  };
 
   const clampCam = () => {
-    const [x0, x1] = camRange(bounds.minX, bounds.maxX, vw / zoom.target);
-    const [y0, y1] = camRange(bounds.minY, bounds.maxY, vh / zoom.target);
+    const [x0, x1] = camRange(bounds.minX, bounds.maxX, vw / zoom.target, vw / zoomMin);
+    const [y0, y1] = camRange(bounds.minY, bounds.maxY, vh / zoom.target, vh / zoomMin);
     cam.x.target = clamp(cam.x.target, x0, x1);
     cam.y.target = clamp(cam.y.target, y0, y1);
   };
