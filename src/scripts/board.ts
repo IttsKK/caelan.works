@@ -1416,9 +1416,11 @@ export function startBoard({ editing = false }: { editing?: boolean } = {}) {
       if (mode === "board") return openGallery(print);
       galleryClick(event.clientX, event.clientY);
     });
-    // Keyboard users: bring a focused photo into view.
+    // Keyboard users: bring a focused photo into view. Not when a click
+    // focuses it: the camera would start moving on the press, slide the photo
+    // out from under the pointer and the click would never land.
     print.el.addEventListener("focus", () => {
-      if (mode !== "board") return;
+      if (mode !== "board" || !print.el.matches(":focus-visible")) return;
       cam.x.target = print.home.x;
       cam.y.target = print.home.y;
       clampCam();
