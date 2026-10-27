@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/koms",
+      "destination": "https://caelan-previews.vercel.app/koms"
+    },
+    {
+      "source": "/koms/:path*",
+      "destination": "https://caelan-previews.vercel.app/koms/:path*"
+    }
+  ]
+}
