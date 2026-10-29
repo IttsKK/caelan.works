@@ -8,6 +8,10 @@ import komsMobile from "../assets/work/koms-mobile.webp";
 import komsPage from "../assets/work/koms-page.webp";
 import komsProduct from "../assets/work/koms-product.webp";
 import komsLookbook from "../assets/work/koms-lookbook.webp";
+import readerCover from "../assets/work/reader-cover.webp";
+import readerIcon from "../assets/work/reader-icon.webp";
+import readerMobile from "../assets/work/reader-mobile.webp";
+import readerPage from "../assets/work/reader-page.webp";
 
 /**
  * The work list, in the order it appears on the home page. Each entry also
@@ -17,6 +21,27 @@ import komsLookbook from "../assets/work/koms-lookbook.webp";
  * 1440×900 screen, pages are full length at 1440 wide, phones are 390×844.
  */
 export const projects: WorkEntry[] = [
+  {
+    slug: "reader",
+    title: "Reader",
+    summary: "A reading app for iPhone, Mac and Android: read at your own pace, listen along, and remember more of it.",
+    description: [
+      "Reader is an app I built for myself, initially to read texts for school assignments. At its core, it's just a simple reading app with on-device voice models, customizable themes, and different reading styles. What makes it different from other reading apps is the active recall features: every so often it stops and asks a few questions about what you just read, and you have to think of the answer before it shows you the choices. The ones worth keeping come back a few days later. It's how I do my class readings now, and I actually remember them afterwards instead of just getting to the end.",
+      "I designed and built all of it: the iPhone and Mac app, the Android app, the server behind the checkpoints, and the site.",
+    ],
+    year: "2026",
+    role: "Design and development",
+    status: "Live",
+    stack: ["SwiftUI", "Jetpack Compose", "Cloudflare Workers"],
+    href: "https://reader.caelan.works",
+    download: { label: "iPhone, Mac and Android", href: "https://reader.caelan.works/get" },
+    app: "reader",
+    icon: readerIcon,
+    featured: true,
+    cover: { src: readerCover, alt: "Reader's site, first screen: the app icon, the name, and a Mac window reading a short piece aloud" },
+    mobile: { src: readerMobile, alt: "Reader's site on a phone" },
+    pages: [{ label: "Home", src: readerPage, alt: "The full Reader landing page" }],
+  },
   {
     slug: "jv-copilot",
     title: "JV Copilot",

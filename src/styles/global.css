@@ -207,8 +207,23 @@ a:hover {
 }
 
 .hero__now {
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
   color: var(--muted);
+}
+
+.hero__now a {
+  color: var(--text);
+}
+
+/* An app's icon, sat on the line before its name like an emoji would. */
+.hero__now .app-icon {
+  display: inline-block;
+  width: 1.375em;
+  height: 1.375em;
+  margin-right: 0.3em;
+  vertical-align: -0.35em;
+  border-radius: 23%;
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 .hero__label {
@@ -350,6 +365,11 @@ a:hover {
   gap: 3.5rem 1.5rem;
 }
 
+/* The project to look at first: full width, above the rest. */
+.work--featured {
+  grid-column: 1 / -1;
+}
+
 .work__item {
   display: block;
   text-decoration: none;
@@ -480,6 +500,94 @@ a:hover {
   color: var(--muted);
 }
 
+/* ── App write-up ── */
+
+.app__icon {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 1.25rem;
+  border-radius: 23%;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.figs {
+  display: grid;
+  gap: 2.5rem 1.5rem;
+}
+
+.figs--phones {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.figs--wide {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* A phone screen's own rounded corners, as a share of its width and height. */
+.shot--phone {
+  border-radius: 13% / 6%;
+}
+
+/* One shape for every phone, so Android's slightly taller screen lines up. */
+.shot--phone img {
+  aspect-ratio: 1206 / 2622;
+  object-fit: cover;
+  object-position: top;
+}
+
+.figs figcaption {
+  margin-top: 0.75rem;
+  color: var(--muted);
+}
+
+/* Each part: its title on the left, the words in the middle column like the
+   case header above, and its images across the full width under them. */
+.part {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 1.5rem;
+  margin-top: 7rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.part__title {
+  font-size: 1.5rem;
+  font-stretch: 105%;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.part__body {
+  max-width: 34em;
+}
+
+.part__body p + p {
+  margin-top: 1em;
+}
+
+.part__items {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.part__body p + .part__items {
+  margin-top: 2.25rem;
+}
+
+.part__items dt {
+  font-weight: 500;
+}
+
+.part__items dd {
+  color: var(--muted);
+}
+
+.part .figs {
+  grid-column: 1 / -1;
+  margin-top: 2.5rem;
+}
+
 /* ── Footer ── */
 
 .footer {
@@ -533,6 +641,19 @@ a:hover {
 
   .case__view {
     grid-template-columns: minmax(0, 1fr) 11rem;
+  }
+
+  .part {
+    grid-template-columns: 1fr;
+    margin-top: 5rem;
+  }
+
+  .figs--phones {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .figs--wide {
+    grid-template-columns: 1fr;
   }
 }
 

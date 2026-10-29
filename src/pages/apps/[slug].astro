@@ -1,0 +1,101 @@
+---
+import { Image } from "astro:assets";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { apps } from "../../data/apps";
+import { siteMeta } from "../../config/site";
+import { withLinks } from "../../lib/links";
+
+export function getStaticPaths() {
+  return apps.map((app) => ({ params: { slug: app.slug }, props: { app } }));
+}
+
+const { app } = Astro.props;
+
+// Phones sit four across at most on a wide screen; mockups two across.
+const sizes = {
+  phones: "(min-width: 1360px) 300px, (min-width: 760px) 23vw, 45vw",
+  wide: "(min-width: 1360px) 620px, (min-width: 760px) 48vw, 100vw",
+};
+---
+
+<BaseLayout title={`${app.title}, the app — ${siteMeta.name}`} description={app.summary}>
+  <article class="wrap">
+    <header class="case">
+      <div>
+        <Image class="app__icon" src={app.icon} alt="" widths={[72, 144]} sizes="72px" loading="eager" />
+        <h1 class="case__title">{app.title}</h1>
+      </div>
+      <div class="case__body">
+        {app.intro.map((paragraph) => <p>{paragraph}</p>)}
+      </div>
+      <dl class="case__facts">
+        {
+          app.facts.map((fact) => (
+            <div>
+              <dt>{fact.label}</dt>
+              <dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </header>
+
+    <div class="figs figs--phones">
+      {
+        app.screens.map((screen) => (
+          <figure>
+            <div class="shot shot--phone">
+              <Image src={screen.src} alt={screen.alt} widths={[300, 600, 900]} sizes={sizes.phones} quality={90} loading="eager" />
+            </div>
+            <figcaption>{screen.caption}</figcaption>
+          </figure>
+        ))
+      }
+    </div>
+
+    {
+      app.sections.map((section) => (
+        <section class="part">
+          <h2 class="part__title">{section.title}</h2>
+          <div class="part__body">
+            {section.body?.map((paragraph) => (
+              <p>{withLinks(paragraph).map((part) => (part.href ? <a href={part.href}>{part.text}</a> : part.text))}</p>
+            ))}
+            {section.items && (
+              <dl class="part__items">
+                {section.items.map((item) => (
+                  <div>
+                    <dt>{item.term}</dt>
+                    <dd>{item.text}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+          {section.figures?.map((group) => (
+            <div class={`figs figs--${group.kind}`}>
+              {group.images.map((figure) => (
+                <figure>
+                  <div class:list={["shot", group.kind === "phones" && "shot--phone"]}>
+                    <Image
+                      src={figure.src}
+                      alt={figure.alt}
+                      widths={group.kind === "phones" ? [300, 600, 900] : [640, 1240, 1840]}
+                      sizes={sizes[group.kind]}
+                      quality={90}
+                    />
+                  </div>
+                  <figcaption>{figure.caption}</figcaption>
+                </figure>
+              ))}
+            </div>
+          ))}
+        </section>
+      ))
+    }
+
+    <a class="case__next" href={app.next.href}>
+      <span>Next</span> {app.next.label}
+    </a>
+  </article>
+</BaseLayout>

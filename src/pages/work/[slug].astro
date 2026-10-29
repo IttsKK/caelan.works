@@ -32,6 +32,22 @@ const labelled = project.pages.length > 1;
             {project.href ? <a href={project.href}>{new URL(project.href).host}</a> : project.status}
           </dd>
         </div>
+        {
+          project.app && (
+            <div>
+              <dt>The app</dt>
+              <dd><a href={`/apps/${project.app}`}>How it works and how I built it</a></dd>
+            </div>
+          )
+        }
+        {
+          project.download && (
+            <div>
+              <dt>Get it</dt>
+              <dd><a href={project.download.href}>{project.download.label}</a></dd>
+            </div>
+          )
+        }
       </dl>
     </header>
 
@@ -45,8 +61,9 @@ const labelled = project.pages.length > 1;
                 <Image
                   src={page.src}
                   alt={page.alt}
-                  widths={[960, 1440, 1920]}
+                  widths={[980, 1470, 1960, 2880]}
                   sizes="(min-width: 1360px) 980px, (min-width: 760px) 75vw, 100vw"
+                  quality={90}
                   loading={i === 0 ? "eager" : "lazy"}
                 />
               </div>
@@ -58,7 +75,7 @@ const labelled = project.pages.length > 1;
         <figure>
           {labelled && <figcaption>Phone</figcaption>}
           <div class="shot">
-            <Image src={project.mobile.src} alt={project.mobile.alt} widths={[300, 600]} sizes="(min-width: 760px) 260px, 60vw" />
+            <Image src={project.mobile.src} alt={project.mobile.alt} widths={[300, 600, 780]} sizes="(min-width: 760px) 260px, 60vw" quality={90} />
           </div>
         </figure>
       </div>

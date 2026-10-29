@@ -46,6 +46,18 @@ at `/work/<slug>`. Each entry needs, all at 2x:
 - `pages` — full-length desktop captures at 1440 wide, home page first. With
   more than one, each is labelled on the project page.
 
+Optional: `download` adds a "Get it" link on the project page, for apps.
+`icon` is an app icon: any link to the project's `href` in the home page's
+now line (`now` in `src/config/site.ts`) gets it inline, before the name.
+`featured` puts the project full width at the top of the Work grid; give it
+to one project at a time.
+
+Apps also get a write-up of the app itself, separate from their site, at
+`/apps/<slug>`: the content is in `src/data/apps.ts` (an opening, facts, a row
+of screens, then titled parts with optional groups of phone or wide images),
+and its images in `src/assets/apps/<slug>/`. Set `app: "<slug>"` on the work
+entry to link the two; links to `/apps/<slug>` in the now line get the icon too.
+
 ## Notes on the design
 
 Dark by default; the home and work pages have a light-mode toggle in the
