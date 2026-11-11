@@ -69,7 +69,7 @@ if('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: red
 }
 /* The page takes on the colours of whichever work is in the middle of the screen. */
 {const base=['#fbfaf7','#1f1d1a'],root=document.documentElement,arts=[...document.querySelectorAll('article')];let last;
- const tint=()=>{const mid=innerHeight/2;const a=arts.find(a=>{const r=a.getBoundingClientRect();return r.top<=mid&&r.bottom>mid});const c=a?[a.dataset.bg,a.dataset.fg]:base;if(c[0]!==last){root.style.setProperty('--bg',c[0]);root.style.setProperty('--fg',c[1]);last=c[0]}};
+ const tint=()=>{const mid=innerHeight/2;const a=document.querySelector("header").getBoundingClientRect().bottom<=0&&arts.find(a=>{const r=a.getBoundingClientRect();return r.top<=mid&&r.bottom>mid});const c=a?[a.dataset.bg,a.dataset.fg]:base;if(c[0]!==last){root.style.setProperty('--bg',c[0]);root.style.setProperty('--fg',c[1]);last=c[0]}};
  addEventListener('scroll',()=>requestAnimationFrame(tint),{passive:true});tint();}
 document.querySelectorAll('img').forEach(img=>img.addEventListener('error',()=>{const p=document.createElement('p');p.className='image-error';p.textContent=(img.alt||'image')+' (unavailable)';img.replaceWith(p)}));
 </script></body></html>
