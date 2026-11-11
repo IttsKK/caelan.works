@@ -733,3 +733,36 @@ a:hover {
     transition: none !important;
   }
 }
+
+.hero__socials {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  margin-top: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.hero__socials a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5625rem;
+  min-height: 2.75rem;
+  text-decoration: none;
+}
+
+.hero__socials a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.hero__socials svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
