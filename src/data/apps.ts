@@ -36,6 +36,7 @@ export const apps: AppBreakdown[] = [
       { label: "Year", value: "2026" },
       { label: "Platforms", value: "iPhone, Mac and Android" },
       { label: "Built with", value: "SwiftUI, Jetpack Compose, Cloudflare Workers, Claude" },
+      { label: "Website", value: "reader.caelan.works", href: "https://reader.caelan.works" },
       { label: "Get it", value: "reader.caelan.works/get", href: "https://reader.caelan.works/get" },
     ],
     screens: [
