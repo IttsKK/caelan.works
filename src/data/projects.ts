@@ -1,5 +1,9 @@
 import type { WorkEntry } from "../types/site";
 
+import copyshopCover from "../assets/work/copyshop-cover.webp";
+import copyshopIcon from "../assets/work/copyshop-icon.webp";
+import copyshopMobile from "../assets/work/copyshop-mobile.webp";
+import copyshopPage from "../assets/work/copyshop-page.webp";
 import jvCover from "../assets/work/jv-cover.webp";
 import jvMobile from "../assets/work/jv-mobile.webp";
 import jvPage from "../assets/work/jv-page.webp";
@@ -22,6 +26,26 @@ import readerPage from "../assets/work/reader-page.webp";
  */
 export const projects: WorkEntry[] = [
   {
+    slug: "copyshop",
+    title: "copyshop",
+    summary: "A photo editor for streaks, repeats, glass, grain and colour, on Mac, Windows and Linux, with a free playground in the browser.",
+    description: [
+      "copyshop is a photo editor I built for my own photos. I wanted nice looking film grain, streaking effects and prints that looked the way I pictured them, and nothing I tried quite did what I wanted, so I built the tools myself, one by one, as I got inspired by different effects.",
+      "I designed and built all of it: the desktop app for Mac, Windows and Linux, the free playground in the browser, the server that moves photos and edits between them, and the site.",
+    ],
+    year: "2026",
+    role: "Design and development",
+    status: "Live",
+    stack: ["React", "WebGL", "Tauri", "Cloudflare Workers"],
+    href: "https://getcopyshop.com",
+    download: { label: "Mac, Windows and Linux", href: "https://getcopyshop.com/buy" },
+    icon: copyshopIcon,
+    featured: true,
+    cover: { src: copyshopCover, alt: "copyshop's site, first screen: the name drawn in repeated strips, a line listing its effects, and the buttons to buy it or try it free" },
+    mobile: { src: copyshopMobile, alt: "copyshop's site on a phone" },
+    pages: [{ label: "Home", src: copyshopPage, alt: "The full copyshop landing page" }],
+  },
+  {
     slug: "reader",
     title: "Reader",
     summary: "A reading app for iPhone, Mac and Android: read at your own pace, listen along, and remember more of it.",
@@ -37,7 +61,6 @@ export const projects: WorkEntry[] = [
     download: { label: "iPhone, Mac and Android", href: "https://reader.caelan.works/get" },
     app: "reader",
     icon: readerIcon,
-    featured: true,
     cover: { src: readerCover, alt: "Reader's site, first screen: the app icon, the name, and a Mac window reading a short piece aloud" },
     mobile: { src: readerMobile, alt: "Reader's site on a phone" },
     pages: [{ label: "Home", src: readerPage, alt: "The full Reader landing page" }],
