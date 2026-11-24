@@ -41,7 +41,7 @@ export const projects: WorkEntry[] = [
     download: { label: "Mac, Windows and Linux", href: "https://getcopyshop.com/buy" },
     icon: copyshopIcon,
     featured: true,
-    cover: { src: copyshopCover, alt: "copyshop's site, first screen: the name drawn in repeated strips, a line listing its effects, and the buttons to buy it or try it free" },
+    cover: { src: copyshopCover, alt: "copyshop's site, first screen: the name streaked and repeated in gold on brown, a line listing its effects, and the buttons to buy it or try it free" },
     mobile: { src: copyshopMobile, alt: "copyshop's site on a phone" },
     pages: [{ label: "Home", src: copyshopPage, alt: "The full copyshop landing page" }],
   },
